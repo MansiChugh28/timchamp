@@ -10,6 +10,7 @@ export const login = createAsyncThunk(
             const data = await api.post('/auth/login', credentials);
             // Assuming the API returns { token, user: { id, name, role, ... } }
             localStorage.setItem('workpulse_token', data.token);
+            localStorage.setItem('workpulse_user', JSON.stringify(data.user || data));
             return data;
         } catch (error) {
             return rejectWithValue(error.response?.data || 'Login failed');
@@ -21,16 +22,20 @@ export const logout = createAsyncThunk(
     'auth/logout',
     async (_, { dispatch }) => {
         localStorage.removeItem('workpulse_token');
+        localStorage.removeItem('workpulse_user');
         return true;
     }
 );
 
 // --- Slice ---
 
+const savedUser = localStorage.getItem('workpulse_user');
+const user = savedUser ? JSON.parse(savedUser) : null;
+
 const initialState = {
-    user: null,
+    user: user,
     token: localStorage.getItem('workpulse_token'),
-    role: null,
+    role: user?.role || null,
     isAuthenticated: !!localStorage.getItem('workpulse_token'),
     loading: false,
     error: null,

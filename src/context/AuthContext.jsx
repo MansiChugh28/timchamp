@@ -7,6 +7,8 @@ export const AuthProvider = ({ children }) => {
         const savedUser = localStorage.getItem('workpulse_user');
         return savedUser ? JSON.parse(savedUser) : null;
     });
+
+
     const [token, setToken] = useState(() => localStorage.getItem('workpulse_token'));
     const [loading, setLoading] = useState(true);
 

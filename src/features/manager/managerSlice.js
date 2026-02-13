@@ -38,11 +38,29 @@ export const fetchTeamReports = createAsyncThunk(
         }
     }
 );
+export const fetchMemberActivity = createAsyncThunk(
+    'manager/fetchMemberActivity',
+    async ({ memberId, date }, { rejectWithValue }) => {
+        try {
+            const data = await api.get(`/manager/members/${memberId}/activity`, { params: { date } });
+            return data;
+        } catch (error) {
+            return rejectWithValue(error.response?.data || 'Failed to fetch member activity');
+        }
+    }
+);
 
 const initialState = {
     teamStats: null,
     projects: [],
     reports: [],
+    selectedMember: {
+        activity: [],
+        screenshots: [],
+        metrics: null,
+        loading: false,
+        error: null,
+    },
     loading: false,
     error: null,
 };
@@ -72,6 +90,21 @@ const managerSlice = createSlice({
             // Team Reports
             .addCase(fetchTeamReports.fulfilled, (state, action) => {
                 state.reports = action.payload;
+            })
+            // Member Activity (Detailed)
+            .addCase(fetchMemberActivity.pending, (state) => {
+                state.selectedMember.loading = true;
+                state.selectedMember.error = null;
+            })
+            .addCase(fetchMemberActivity.fulfilled, (state, action) => {
+                state.selectedMember.loading = false;
+                state.selectedMember.activity = action.payload.activity || [];
+                state.selectedMember.screenshots = action.payload.screenshots || [];
+                state.selectedMember.metrics = action.payload.metrics || null;
+            })
+            .addCase(fetchMemberActivity.rejected, (state, action) => {
+                state.selectedMember.loading = false;
+                state.selectedMember.error = action.payload;
             });
     },
 });

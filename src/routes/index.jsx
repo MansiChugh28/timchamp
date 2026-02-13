@@ -8,6 +8,8 @@ import Login from '../pages/auth/Login';
 
 // Dashboard
 import Dashboard from '../pages/dashboard/Dashboard';
+import MemberActivityDetail from '../pages/dashboard/MemberActivityDetail';
+import ManagerIntelligence from '../pages/dashboard/components/ManagerIntelligence';
 
 // Modules
 import TeamList from '../pages/teams/TeamList';
@@ -26,12 +28,14 @@ const AppRoutes = () => {
 
             {/* Protected Routes */}
             <Route path="/" element={
-                <ProtectedRoute>
-                    <MainLayout />
-                </ProtectedRoute>
+                // <ProtectedRoute>
+                <MainLayout />
+                // </ProtectedRoute>
             }>
                 <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
+                <Route path="dashboard/member/:id" element={<MemberActivityDetail />} />
+                <Route path="dashboard/manager/:id" element={<ManagerIntelligence />} />
 
                 {/* Team Routes */}
                 <Route path="teams" element={<TeamList />} />

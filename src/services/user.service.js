@@ -2,8 +2,6 @@ import api from './api';
 
 const userService = {
     getAllUsers: async () => {
-        // Mock API call
-        // return api.get('/users');
         return new Promise((resolve) => {
             setTimeout(() => {
                 const mockUsers = [

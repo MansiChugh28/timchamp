@@ -19,6 +19,7 @@ import { fetchUsers, createUser, updateUser, deleteUser } from '../../features/a
 import Modal from '../../components/ui/Modal';
 import UserForm from '../../components/users/UserForm';
 import { cn } from '../../lib/utils';
+import { Button } from '../../components/ui/button';
 
 const UserList = () => {
     const dispatch = useDispatch();
@@ -123,7 +124,7 @@ const UserList = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
-                            {users.map((u) => (
+                            {users?.map?.((u) => (
                                 <tr key={u.id} className="hover:bg-slate-50/50 transition-colors group">
                                     <td className="px-10 py-6">
                                         <div className="flex items-center gap-4">

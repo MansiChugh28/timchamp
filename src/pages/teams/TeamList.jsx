@@ -7,14 +7,43 @@ import EmptyState from '../../components/ui/EmptyState';
 import { useSelector } from 'react-redux';
 import { cn } from '../../lib/utils';
 
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "../../components/ui/dialog";
+import TeamForm from "../../components/teams/TeamForm";
+
 const TeamList = () => {
     const { user } = useSelector((state) => state.auth);
-    const [allTeams] = useState([
+    const [open, setOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [allTeams, setAllTeams] = useState([
         { id: 1, name: 'Engineering', manager: 'Ben Wilson', members: 45, projects: 12, performance: '94%', color: 'bg-blue-600' },
         { id: 2, name: 'Marketing', manager: 'Sarah Lane', members: 18, projects: 4, performance: '82%', color: 'bg-purple-600' },
         { id: 3, name: 'Product', manager: 'Mike Ross', members: 12, projects: 8, performance: '98%', color: 'bg-emerald-600' },
         { id: 4, name: 'Design', manager: 'Jessica Day', members: 22, projects: 5, performance: '91%', color: 'bg-rose-600' },
     ]);
+
+    const handleCreateTeam = async (formData) => {
+        setIsSubmitting(true);
+        // Simulate API call
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const newTeam = {
+            id: allTeams.length + 1,
+            ...formData,
+            manager: user.name,
+            members: 0,
+            projects: 0,
+            performance: '0%',
+            color: 'bg-blue-600'
+        };
+        setAllTeams([...allTeams, newTeam]);
+        setIsSubmitting(false);
+        setOpen(false);
+    };
 
     // Role-based filtering logic
     const teams = allTeams.filter(team => {
@@ -26,27 +55,55 @@ const TeamList = () => {
 
     if (teams.length === 0) {
         return (
-            <EmptyState
-                icon={Users}
-                title="No teams configured"
-                description="Structure your organization into units to begin performance analysis."
-                actionLabel={(user?.role === 'admin' || user?.role === 'manager') ? "Create Team" : null}
-                onAction={(user?.role === 'admin' || user?.role === 'manager') ? () => { } : null}
-            />
+            <div className="space-y-10">
+                <EmptyState
+                    icon={Users}
+                    title="No teams configured"
+                    description="Structure your organization into units to begin performance analysis."
+                    actionLabel={(user?.role === 'admin' || user?.role === 'manager') ? "Create Team" : null}
+                    onAction={(user?.role === 'admin' || user?.role === 'manager') ? () => setOpen(true) : null}
+                />
+                <Dialog open={open} onOpenChange={setOpen}>
+                    <DialogContent className="sm:max-w-[425px] rounded-[32px] border-slate-100 shadow-2xl">
+                        <DialogHeader>
+                            <DialogTitle className="text-xl font-black text-slate-900 uppercase tracking-tight">Initialize Unit</DialogTitle>
+                        </DialogHeader>
+                        <TeamForm
+                            onSubmit={handleCreateTeam}
+                            onCancel={() => setOpen(false)}
+                            loading={isSubmitting}
+                        />
+                    </DialogContent>
+                </Dialog>
+            </div>
         );
     }
 
     return (
-        <div className="space-y-10 animate-in fade-in duration-700 max-w-[1400px] mx-auto">
+        <div className="space-y-10 animate-in fade-in duration-700 max-w-[1400px] mx-auto pb-20">
             <div className="flex justify-between items-end">
                 <div className="flex flex-col gap-1">
                     <h1 className="text-3xl font-black tracking-tighter text-slate-900 uppercase">Operational Units</h1>
                     <p className="text-slate-500 font-medium ml-0.5">Manage departmental scale and resource allocation</p>
                 </div>
                 {(user?.role === 'admin' || user?.role === 'manager') && (
-                    <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest px-8 py-6 shadow-xl shadow-blue-500/20 active:scale-95 transition-all">
-                        <Plus size={16} className="mr-2" /> Initialize Unit
-                    </Button>
+                    <Dialog open={open} onOpenChange={setOpen}>
+                        <DialogTrigger asChild>
+                            <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest px-8 py-6 shadow-xl shadow-blue-500/20 active:scale-95 transition-all">
+                                <Plus size={16} className="mr-2" /> Initialize Unit
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[425px] rounded-[32px] border-slate-100 shadow-2xl">
+                            <DialogHeader>
+                                <DialogTitle className="text-xl font-black text-slate-900 uppercase tracking-tight">Initialize Unit</DialogTitle>
+                            </DialogHeader>
+                            <TeamForm
+                                onSubmit={handleCreateTeam}
+                                onCancel={() => setOpen(false)}
+                                loading={isSubmitting}
+                            />
+                        </DialogContent>
+                    </Dialog>
                 )}
             </div>
 
