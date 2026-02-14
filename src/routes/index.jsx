@@ -5,6 +5,7 @@ import ProtectedRoute from '../components/layout/ProtectedRoute';
 
 // Auth Pages
 import Login from '../pages/auth/Login';
+import Register from '../pages/auth/Register';
 
 // Dashboard
 import Dashboard from '../pages/dashboard/Dashboard';
@@ -25,12 +26,13 @@ const AppRoutes = () => {
         <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
 
             {/* Protected Routes */}
             <Route path="/" element={
-                // <ProtectedRoute>
-                <MainLayout />
-                // </ProtectedRoute>
+                <ProtectedRoute>
+                    <MainLayout />
+                </ProtectedRoute>
             }>
                 <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />

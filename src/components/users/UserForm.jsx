@@ -1,17 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { User, Mail, Lock, Shield, Building, Users, UserCheck, Loader2 } from 'lucide-react';
 import { Button } from '../ui/button';
+import { useSelector } from 'react-redux';
 
 const UserForm = ({ initialData, onSubmit, onCancel, loading }) => {
+    const { user: currentUser } = useSelector((state) => state.auth);
+    const { users } = useSelector((state) => state.admin); // To list managers
+
     const [formData, setFormData] = useState({
         name: '',
         email: '',
         password: '',
-        role: 'EMPLOYEE',
-        department: '',
-        team: '',
-        manager: '',
-        status: 'Active',
+        role: currentUser?.role === 'manager' ? 'employee' : 'employee',
+        functional_unit: '',
+        manager_id: currentUser?.role === 'manager' ? currentUser.id : '',
+        organisation_id: currentUser?.organisation_id || '',
+        is_owner: false,
     });
 
     useEffect(() => {
@@ -19,10 +23,12 @@ const UserForm = ({ initialData, onSubmit, onCancel, loading }) => {
             setFormData({
                 ...formData,
                 ...initialData,
-                password: '', // Don't pre-fill password for editing
+                password: '',
             });
         }
     }, [initialData]);
+
+    const managers = users?.filter(u => u.role === 'manager' && u.organisation_id === currentUser?.organisation_id) || [];
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -31,17 +37,25 @@ const UserForm = ({ initialData, onSubmit, onCancel, loading }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        onSubmit(formData);
+        // Force manager_id to null for non-employees, or to creator's ID if creator is manager
+        const finalData = { ...formData };
+        if (finalData.role !== 'employee') {
+            finalData.manager_id = null;
+        }
+        if (currentUser?.role === 'manager') {
+            finalData.role = 'employee';
+            finalData.manager_id = currentUser.id;
+        }
+        onSubmit(finalData);
     };
 
     const roles = [
-        { value: 'MANAGER', label: 'Strategic Manager' },
-        { value: 'EMPLOYEE', label: 'Unit Personnel' },
+        { value: 'admin', label: 'Admin' },
+        { value: 'manager', label: 'Manager' },
+        { value: 'employee', label: 'Employee' },
     ];
 
-    const departments = ['Engineering', 'Product', 'Design', 'Marketing', 'Sales', 'HR', 'Finance'];
-    const teams = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Core', 'Support'];
-    const statuses = ['Active', 'Inactive'];
+    const functionalUnits = ['Engineer', 'Designer', 'Sales', 'Marketing', 'HR', 'Finance', 'Accountant'];
 
     return (
         <form onSubmit={handleSubmit} className="space-y-8">
@@ -98,20 +112,22 @@ const UserForm = ({ initialData, onSubmit, onCancel, loading }) => {
                 )}
 
                 {/* Role */}
-                <div className="space-y-2.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Access Protocol</label>
-                    <div className="relative group">
-                        <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-500 transition-colors" size={18} />
-                        <select
-                            name="role"
-                            className="w-full pl-12 pr-4 py-4 bg-slate-50 border-transparent border-2 focus:bg-white focus:border-slate-100 rounded-2xl text-xs font-black uppercase tracking-widest outline-none transition-all appearance-none cursor-pointer"
-                            value={formData.role}
-                            onChange={handleChange}
-                        >
-                            {roles.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-                        </select>
+                {currentUser?.role === 'admin' && (
+                    <div className="space-y-2.5">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Access Protocol</label>
+                        <div className="relative group">
+                            <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-500 transition-colors" size={18} />
+                            <select
+                                name="role"
+                                className="w-full pl-12 pr-4 py-4 bg-slate-50 border-transparent border-2 focus:bg-white focus:border-slate-100 rounded-2xl text-[11px] font-black uppercase tracking-widest outline-none transition-all appearance-none cursor-pointer"
+                                value={formData.role}
+                                onChange={handleChange}
+                            >
+                                {roles.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                            </select>
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Organizational Context */}
                 <div className="space-y-2.5">
@@ -119,32 +135,37 @@ const UserForm = ({ initialData, onSubmit, onCancel, loading }) => {
                     <div className="relative group">
                         <Building className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-500 transition-colors" size={18} />
                         <select
-                            name="department"
+                            name="functional_unit"
+                            required
                             className="w-full pl-12 pr-4 py-4 bg-slate-50 border-transparent border-2 focus:bg-white focus:border-slate-100 rounded-2xl text-[11px] font-bold outline-none transition-all appearance-none cursor-pointer"
-                            value={formData.department}
+                            value={formData.functional_unit}
                             onChange={handleChange}
                         >
-                            <option value="">Select Department</option>
-                            {departments.map(d => <option key={d} value={d}>{d}</option>)}
+                            <option value="">Select Unit</option>
+                            {functionalUnits.map(u => <option key={u} value={u}>{u}</option>)}
                         </select>
                     </div>
                 </div>
 
-                <div className="space-y-2.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Tactical Team</label>
-                    <div className="relative group">
-                        <Users className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-500 transition-colors" size={18} />
-                        <select
-                            name="team"
-                            className="w-full pl-12 pr-4 py-4 bg-slate-50 border-transparent border-2 focus:bg-white focus:border-slate-100 rounded-2xl text-[11px] font-bold outline-none transition-all appearance-none cursor-pointer"
-                            value={formData.team}
-                            onChange={handleChange}
-                        >
-                            <option value="">Select Team</option>
-                            {teams.map(t => <option key={t} value={t}>{t}</option>)}
-                        </select>
+                {/* Manager Dropdown for Employees - only shown if admin is creator */}
+                {formData.role === 'employee' && currentUser?.role === 'admin' && (
+                    <div className="space-y-2.5">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Superior Proxy (Manager)</label>
+                        <div className="relative group">
+                            <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-500 transition-colors" size={18} />
+                            <select
+                                name="manager_id"
+                                required={formData.role === 'employee'}
+                                className="w-full pl-12 pr-4 py-4 bg-slate-50 border-transparent border-2 focus:bg-white focus:border-slate-100 rounded-2xl text-[11px] font-bold outline-none transition-all appearance-none cursor-pointer"
+                                value={formData.manager_id}
+                                onChange={handleChange}
+                            >
+                                <option value="">Select Manager</option>
+                                {managers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                            </select>
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Status */}
                 <div className="space-y-2.5">
@@ -157,22 +178,9 @@ const UserForm = ({ initialData, onSubmit, onCancel, loading }) => {
                             value={formData.status}
                             onChange={handleChange}
                         >
-                            {statuses.map(s => <option key={s} value={s}>{s}</option>)}
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
                         </select>
-                    </div>
-                </div>
-
-                <div className="space-y-2.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Superior Proxy (Manager)</label>
-                    <div className="relative group">
-                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-500 transition-colors" size={18} />
-                        <input
-                            name="manager"
-                            placeholder="Manager Name"
-                            className="w-full pl-12 pr-4 py-4 bg-slate-50 border-transparent border-2 focus:bg-white focus:border-slate-100 rounded-2xl text-sm font-medium outline-none transition-all"
-                            value={formData.manager}
-                            onChange={handleChange}
-                        />
                     </div>
                 </div>
             </div>

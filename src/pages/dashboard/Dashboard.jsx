@@ -47,7 +47,7 @@ const Dashboard = () => {
         case 'admin':
             return <AdminDashboard adminState={adminState} navigate={navigate} />;
         case 'manager':
-            return <ManagerDashboard managerState={managerState} navigate={navigate} />;
+            return <ManagerDashboard managerState={managerState} navigate={navigate} user={user} />;
         case 'employee':
             return <EmployeeDashboard employeeState={employeeState} />;
         default:

@@ -4,6 +4,8 @@ const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || 'https://eddy-sane-senatorially.ngrok-free.dev/api/v1',
     headers: {
         'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+
     },
 });
 

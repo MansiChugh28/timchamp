@@ -8,7 +8,7 @@ export const AuthProvider = ({ children }) => {
         return savedUser ? JSON.parse(savedUser) : null;
     });
 
-
+    const [organizationName, setOrganizationName] = useState(() => localStorage.getItem('workpulse_org'));
     const [token, setToken] = useState(() => localStorage.getItem('workpulse_token'));
     const [loading, setLoading] = useState(true);
 
@@ -17,23 +17,30 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
     }, []);
 
-    const login = (userData, jwtToken) => {
+    const login = (userData, jwtToken, orgName) => {
         setUser(userData);
         setToken(jwtToken);
+        setOrganizationName(orgName);
         localStorage.setItem('workpulse_user', JSON.stringify(userData));
         localStorage.setItem('workpulse_token', jwtToken);
+        if (orgName) {
+            localStorage.setItem('workpulse_org', orgName);
+        }
     };
 
     const logout = () => {
         setUser(null);
         setToken(null);
+        setOrganizationName(null);
         localStorage.removeItem('workpulse_user');
         localStorage.removeItem('workpulse_token');
+        localStorage.removeItem('workpulse_org');
     };
 
     const value = {
         user,
         token,
+        organizationName,
         isAuthenticated: !!token,
         role: user?.role || null,
         login,

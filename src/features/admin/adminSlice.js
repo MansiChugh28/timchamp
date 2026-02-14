@@ -5,12 +5,24 @@ import api from '../../services/api';
 
 export const fetchUsers = createAsyncThunk(
     'admin/fetchUsers',
-    async (_, { rejectWithValue }) => {
+    async (params, { rejectWithValue }) => {
         try {
-            const data = await api.get('/users');
-            return data;
+            const response = await api.get('/users', { params });
+            return response; // Assuming interceptor returns response.data
         } catch (error) {
             return rejectWithValue(error.response?.data || 'Failed to fetch users');
+        }
+    }
+);
+
+export const fetchUserById = createAsyncThunk(
+    'admin/fetchUserById',
+    async (id, { rejectWithValue }) => {
+        try {
+            const response = await api.get(`/users/${id}`);
+            return response;
+        } catch (error) {
+            return rejectWithValue(error.response?.data || 'Failed to fetch user details');
         }
     }
 );
@@ -19,9 +31,9 @@ export const createUser = createAsyncThunk(
     'admin/createUser',
     async (userData, { rejectWithValue, dispatch }) => {
         try {
-            const data = await api.post('/users', userData);
+            const response = await api.post('/users', userData);
             dispatch(fetchUsers());
-            return data;
+            return response;
         } catch (error) {
             return rejectWithValue(error.response?.data || 'Failed to create user');
         }
@@ -85,7 +97,10 @@ const adminSlice = createSlice({
             })
             .addCase(fetchUsers.fulfilled, (state, action) => {
                 state.loading = false;
-                state.users = action.payload;
+                // Defensive extraction: handle arrays or wrapped objects
+                state.users = Array.isArray(action.payload)
+                    ? action.payload
+                    : (action.payload?.users || action.payload?.data || []);
             })
             .addCase(fetchUsers.rejected, (state, action) => {
                 state.loading = false;
@@ -100,6 +115,18 @@ const adminSlice = createSlice({
                 state.stats = action.payload;
             })
             .addCase(fetchAdminDashboard.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
+            })
+            // Fetch User By ID
+            .addCase(fetchUserById.pending, (state) => {
+                state.loading = true;
+            })
+            .addCase(fetchUserById.fulfilled, (state, action) => {
+                state.loading = false;
+                // You might want to store this in state.currentUserDetails if needed
+            })
+            .addCase(fetchUserById.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
             });

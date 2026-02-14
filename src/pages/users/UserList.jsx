@@ -12,7 +12,8 @@ import {
     Edit2,
     ChevronRight,
     TrendingUp,
-    Layout
+    Layout,
+    AlertTriangle
 } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
 import { fetchUsers, createUser, updateUser, deleteUser } from '../../features/admin/adminSlice';
@@ -20,6 +21,7 @@ import Modal from '../../components/ui/Modal';
 import UserForm from '../../components/users/UserForm';
 import { cn } from '../../lib/utils';
 import { Button } from '../../components/ui/button';
+import Toast from '../../components/ui/Toast';
 
 const UserList = () => {
     const dispatch = useDispatch();
@@ -29,6 +31,14 @@ const UserList = () => {
     const [modalOpen, setModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
     const [formLoading, setFormLoading] = useState(false);
+
+    // Deletion Modal State
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [userToDelete, setUserToDelete] = useState(null);
+    const [deleting, setDeleting] = useState(false);
+
+    // Toast State
+    const [toast, setToast] = useState(null);
 
     useEffect(() => {
         dispatch(fetchUsers());
@@ -44,9 +54,25 @@ const UserList = () => {
         setModalOpen(true);
     };
 
-    const handleDeleteUser = (id) => {
-        if (window.confirm('Are you sure you want to delete this identity?')) {
-            dispatch(deleteUser(id));
+    const handleDeleteClick = (user) => {
+        setUserToDelete(user);
+        setDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!userToDelete) return;
+        setDeleting(true);
+        try {
+            await dispatch(deleteUser(userToDelete.id)).unwrap();
+            setToast({ message: 'Identity successfully dissolved', type: 'success' });
+            setDeleteModalOpen(false);
+            setUserToDelete(null);
+        } catch (err) {
+            const errorMessage = typeof err === 'object' ? (err.error || err.message) : err;
+            setToast({ message: errorMessage || 'Dissolution failed', type: 'error' });
+            console.error('Deletion failed:', err);
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -55,11 +81,15 @@ const UserList = () => {
         try {
             if (editingUser) {
                 await dispatch(updateUser({ id: editingUser.id, userData: formData })).unwrap();
+                setToast({ message: 'Identity vector updated successfully', type: 'success' });
             } else {
                 await dispatch(createUser(formData)).unwrap();
+                setToast({ message: 'New identity established successfully', type: 'success' });
             }
             setModalOpen(false);
         } catch (err) {
+            const errorMessage = typeof err === 'object' ? (err.error || err.message) : err;
+            setToast({ message: errorMessage || 'Operation failed', type: 'error' });
             console.error('Form submission failed:', err);
         } finally {
             setFormLoading(false);
@@ -124,15 +154,27 @@ const UserList = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
-                            {users?.map?.((u) => (
+                            {users?.filter(u => u.organisation_id === currentUser?.organisation_id).map((u) => (
                                 <tr key={u.id} className="hover:bg-slate-50/50 transition-colors group">
                                     <td className="px-10 py-6">
                                         <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-slate-100 to-slate-200 flex items-center justify-center font-black text-xs text-slate-500 shadow-sm group-hover:rotate-6 transition-transform">
-                                                {u.initials}
+                                            <div className="relative">
+                                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-slate-100 to-slate-200 flex items-center justify-center font-black text-xs text-slate-500 shadow-sm group-hover:rotate-6 transition-transform">
+                                                    {u.initials || u.name?.charAt(0)}
+                                                </div>
+                                                {u.is_owner && (
+                                                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-amber-400 rounded-lg flex items-center justify-center shadow-lg border-2 border-white">
+                                                        <TrendingUp size={10} className="text-white" />
+                                                    </div>
+                                                )}
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="text-sm font-black text-slate-900 uppercase tracking-tight">{u.name}</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-black text-slate-900 uppercase tracking-tight">{u.name}</span>
+                                                    {u.is_owner && (
+                                                        <span className="text-[8px] font-black bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded border border-amber-200 tracking-widest uppercase">Owner</span>
+                                                    )}
+                                                </div>
                                                 <span className="text-[10px] font-bold text-slate-400">{u.email}</span>
                                             </div>
                                         </div>
@@ -144,10 +186,10 @@ const UserList = () => {
                                         )}>{u.role}</span>
                                     </td>
                                     <td className="px-10 py-6 text-xs font-bold text-slate-500 uppercase tracking-widest">
-                                        {u.department} / {u.team}
+                                        {u.functional_unit || u.department}
                                     </td>
                                     <td className="px-10 py-6 text-xs font-bold text-slate-500 uppercase tracking-widest">
-                                        {u.manager}
+                                        {u.manager_id ? (users.find(m => m.id === u.manager_id)?.name || 'Direct Report') : u.manager || 'None'}
                                     </td>
                                     <td className="px-10 py-6">
                                         <div className="flex items-center gap-2">
@@ -155,23 +197,28 @@ const UserList = () => {
                                                 "w-1.5 h-1.5 rounded-full animate-pulse",
                                                 u.status === 'Active' ? 'bg-emerald-500' : 'bg-slate-300'
                                             )} />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{u.status}</span>
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 font-bold">{u.status || 'Active'}</span>
                                         </div>
                                     </td>
                                     <td className="px-10 py-6 text-right">
                                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button
-                                                onClick={() => handleEditUser(u)}
-                                                className="p-3 bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-blue-600 hover:border-blue-100 shadow-sm transition-all"
-                                            >
-                                                <Edit2 size={16} />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDeleteUser(u.id)}
-                                                className="p-3 bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-red-600 hover:border-red-100 shadow-sm transition-all"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
+                                            {/* Protection Logic: Normal admins cannot edit/delete owner */}
+                                            {(!u.is_owner || currentUser?.is_owner) && (
+                                                <>
+                                                    <button
+                                                        onClick={() => handleEditUser(u)}
+                                                        className="p-3 bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-blue-600 hover:border-blue-100 shadow-sm transition-all"
+                                                    >
+                                                        <Edit2 size={16} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteClick(u)}
+                                                        className="p-3 bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-red-600 hover:border-red-100 shadow-sm transition-all"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -195,6 +242,53 @@ const UserList = () => {
                     loading={formLoading}
                 />
             </Modal>
+
+            {/* Deletion Confirmation Modal */}
+            <Modal
+                isOpen={deleteModalOpen}
+                onClose={() => setDeleteModalOpen(false)}
+                title="Identity Termination"
+                maxWidth="max-w-md"
+            >
+                <div className="flex flex-col items-center text-center space-y-6">
+                    <div className="w-20 h-20 rounded-[30px] bg-red-50 flex items-center justify-center border border-red-100 animate-in zoom-in-50">
+                        <AlertTriangle size={36} className="text-red-500 animate-pulse" />
+                    </div>
+
+                    <div className="space-y-2">
+                        <h4 className="text-lg font-black text-slate-900 uppercase tracking-tight">Confirm Dissolution</h4>
+                        <p className="text-sm text-slate-500 font-medium px-4">
+                            You are about to terminate user <span className="text-slate-900 font-black">"{userToDelete?.name}"</span>.
+                            This operation will dissolve all access tokens and active identity vectors associated with this entity.
+                        </p>
+                    </div>
+
+                    <div className="w-full flex flex-col gap-3 pt-4">
+                        <Button
+                            onClick={confirmDelete}
+                            disabled={deleting}
+                            className="w-full h-[56px] bg-red-600 hover:bg-red-700 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl shadow-red-500/20 transition-all hover:-translate-y-1 active:translate-y-0"
+                        >
+                            {deleting ? <Loader2 className="animate-spin" size={18} /> : 'Proceed with Termination'}
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            onClick={() => setDeleteModalOpen(false)}
+                            className="w-full h-[56px] rounded-2xl text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900"
+                        >
+                            Abort Protocol
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
+
+            {toast && (
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    onClose={() => setToast(null)}
+                />
+            )}
         </div>
     );
 };

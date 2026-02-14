@@ -19,7 +19,7 @@ const Login = () => {
         e.preventDefault();
         try {
             const resultAction = await dispatch(login({ email, password })).unwrap();
-            contextLogin(resultAction.user, resultAction.token);
+            contextLogin(resultAction.user, resultAction.token, resultAction.organization?.name);
             navigate('/dashboard');
         } catch (err) {
             console.error('Login failed:', err);
@@ -101,9 +101,12 @@ const Login = () => {
                     </form>
 
                     <div className="mt-10 text-center pt-8 border-t border-slate-50">
-                        <p className="text-xs text-slate-400 font-bold uppercase tracking-tight">
-                            Access restricted to authorized enterprise entities.
+                        <p className="text-xs text-slate-400 font-bold uppercase tracking-tight mb-4">
+                            New organisation?
                         </p>
+                        <Link to="/register" className="text-[11px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-700 transition-all underline underline-offset-8 decoration-2 decoration-blue-100 hover:decoration-blue-600">
+                            Create Account
+                        </Link>
                     </div>
                 </div>
 
