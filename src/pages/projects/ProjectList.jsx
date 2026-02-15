@@ -26,6 +26,7 @@ import Toast from '../../components/ui/Toast';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { cn } from '../../lib/utils';
+import userService from '../../services/user.service';
 
 const ProjectList = () => {
     const dispatch = useDispatch();
@@ -34,24 +35,47 @@ const ProjectList = () => {
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState(null);
-    const [formData, setFormData] = useState({ name: '', description: '' });
+    const [formData, setFormData] = useState({
+        name: '',
+        description: '',
+        managerId: '',
+        assignedEmployeeIds: []
+    });
+    const [users, setUsers] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [toast, setToast] = useState(null);
 
     useEffect(() => {
         dispatch(fetchProjects());
-    }, [dispatch]);
+        const loadUsers = async () => {
+            try {
+                const params = user?.role === 'manager' ? { manager_id: user.id } : {};
+                const response = await userService.getAllUsers(params);
+                setUsers(response.data || response);
+            } catch (err) {
+                console.error('Failed to load users:', err);
+            }
+        };
+        if (user) loadUsers();
+    }, [dispatch, user]);
 
     useEffect(() => {
         if (editingProject) {
             setFormData({
                 name: editingProject.name,
-                description: editingProject.description || ''
+                description: editingProject.description || '',
+                managerId: editingProject.managerId || '',
+                assignedEmployeeIds: editingProject.assignedEmployeeIds || []
             });
         } else {
-            setFormData({ name: '', description: '' });
+            setFormData({
+                name: '',
+                description: '',
+                managerId: user?.role === 'manager' ? user.id : '',
+                assignedEmployeeIds: []
+            });
         }
-    }, [editingProject]);
+    }, [editingProject, user]);
 
     const handleOpenModal = (project = null) => {
         setEditingProject(project);
@@ -61,7 +85,12 @@ const ProjectList = () => {
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setEditingProject(null);
-        setFormData({ name: '', description: '' });
+        setFormData({
+            name: '',
+            description: '',
+            managerId: user?.role === 'manager' ? user.id : '',
+            assignedEmployeeIds: []
+        });
     };
 
     const showToast = (message, type = 'success') => {
@@ -72,11 +101,20 @@ const ProjectList = () => {
         e.preventDefault();
         setIsSubmitting(true);
         try {
+            const projectPayload = {
+                ...formData,
+                manager_name: user?.role === 'manager' ? user.name : (users.find(u => u.id === parseInt(formData.managerId))?.name || ''),
+                assigned_users: [
+                    ...(formData.managerId ? [parseInt(formData.managerId)] : (user?.role === 'manager' ? [user.id] : [])),
+                    ...formData.assignedEmployeeIds
+                ]
+            };
+
             if (editingProject) {
-                await dispatch(updateProject({ id: editingProject.id, projectData: formData })).unwrap();
+                await dispatch(updateProject({ id: editingProject.id, projectData: projectPayload })).unwrap();
                 showToast('Project updated successfully.');
             } else {
-                await dispatch(createProject(formData)).unwrap();
+                await dispatch(createProject(projectPayload)).unwrap();
                 showToast('Project initialized successfully.');
             }
             handleCloseModal();
@@ -102,7 +140,6 @@ const ProjectList = () => {
         }
     };
 
-    // Helper to generate mock sparkline data (fallback if API doesn't provide activity)
     const generateActivity = () => Array.from({ length: 7 }, () => ({ value: Math.floor(Math.random() * 40) + 10 }));
 
     const canCreate = user?.role === 'admin' || user?.role === 'manager';
@@ -139,6 +176,25 @@ const ProjectList = () => {
         );
     }
 
+    const managers = users.filter(u => u.role === 'MANAGER');
+
+    const getFilteredEmployees = () => {
+        if (user?.role === 'manager') {
+            // For managers, users list is already filtered by API
+            return users.filter(u => u.role === 'EMPLOYEE');
+        }
+
+        const currentManagerId = formData.managerId;
+        if (!currentManagerId) return [];
+
+        const managerObj = users.find(u => u.id === parseInt(currentManagerId));
+        if (!managerObj) return [];
+
+        return users.filter(u => u.role === 'EMPLOYEE' && u.manager === managerObj.name);
+    };
+
+    const filteredEmployees = getFilteredEmployees();
+
     function renderModal() {
         return (
             <Modal
@@ -170,6 +226,60 @@ const ProjectList = () => {
                             className="w-full px-4 py-3 rounded-2xl border-2 border-slate-100 bg-slate-50 focus:bg-white focus:border-blue-500 transition-all outline-none text-sm font-medium resize-none"
                         />
                     </div>
+
+                    {user?.role === 'admin' && (
+                        <div className="space-y-2">
+                            <Label htmlFor="managerId" className="text-[10px] font-black uppercase tracking-widest text-slate-400">Project Manager</Label>
+                            <select
+                                id="managerId"
+                                value={formData.managerId}
+                                onChange={(e) => setFormData({ ...formData, managerId: e.target.value, assignedEmployeeIds: [] })}
+                                className="w-full px-4 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50 focus:bg-white focus:border-blue-500 transition-all outline-none text-sm font-medium appearance-none"
+                                required
+                            >
+                                <option value="">Select Manager</option>
+                                {managers.map(m => (
+                                    <option key={m.id} value={m.id}>{m.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                            Assign Personnel Under {user?.role === 'manager' ? 'You' : (users.find(u => u.id === parseInt(formData.managerId))?.name || 'Manager')}
+                        </Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[200px] overflow-y-auto p-2 border-2 border-slate-100 rounded-2xl bg-slate-50/50">
+                            {filteredEmployees.length > 0 ? (
+                                filteredEmployees.map(emp => (
+                                    <label key={emp.id} className="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-100 cursor-pointer hover:border-blue-200 transition-all">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.assignedEmployeeIds.includes(emp.id)}
+                                            onChange={(e) => {
+                                                const ids = e.target.checked
+                                                    ? [...formData.assignedEmployeeIds, emp.id]
+                                                    : formData.assignedEmployeeIds.filter(id => id !== emp.id);
+                                                setFormData({ ...formData, assignedEmployeeIds: ids });
+                                            }}
+                                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
+                                        />
+                                        <div className="min-w-0">
+                                            <p className="text-xs font-bold text-slate-700 truncate">{emp.name}</p>
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{emp.team}</p>
+                                        </div>
+                                    </label>
+                                ))
+                            ) : (
+                                <div className="col-span-full py-8 text-center">
+                                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
+                                        {formData.managerId ? 'No reportees found for this manager' : 'Select a manager to allocate units'}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     <div className="flex gap-4 pt-4">
                         <Button
                             type="button"

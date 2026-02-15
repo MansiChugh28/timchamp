@@ -23,6 +23,10 @@ import {
 } from 'recharts';
 import { Button } from '../../components/ui/button';
 import { cn } from '../../lib/utils';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchProjectById } from '../../features/projects/projectSlice';
+import userService from '../../services/user.service';
+import { Loader2 } from 'lucide-react';
 
 // --- MOCK DATA ---
 const projectActivity = [
@@ -52,23 +56,31 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 const ProjectDetail = () => {
     const { id } = useParams();
+    const dispatch = useDispatch();
+    const { currentProject: project, loading } = useSelector((state) => state.projects);
+    const [allUsers, setAllUsers] = React.useState([]);
 
-    // Mock project data
-    const project = {
-        id,
-        name: 'Apollo CMS Implementation',
-        description: 'Architecting a headless content management system for high-velocity retail cycles. Focus on GraphQL integration and edge caching.',
-        status: 'Active',
-        teams: ['Engineering Hub', 'Strategic Design'],
-        deadline: 'Mar 15, 2026',
-        progress: 68,
-        tasks: [
-            { id: 1, title: 'Schema Design & Data Flow', status: 'Completed', assignedTo: 'Alice', priority: 'High', initials: 'AS' },
-            { id: 2, title: 'Auth Provider Integration', status: 'Completed', assignedTo: 'Alice', priority: 'Medium', initials: 'AS' },
-            { id: 3, title: 'Dashboard Analytics UI', status: 'In Progress', assignedTo: 'Bob', priority: 'High', initials: 'BJ' },
-            { id: 4, title: 'Edge Deployment Config', status: 'Pending', assignedTo: 'Charlie', priority: 'High', initials: 'CB' },
-        ]
-    };
+    React.useEffect(() => {
+        dispatch(fetchProjectById(id));
+        const loadUsers = async () => {
+            const response = await userService.getAllUsers();
+            setAllUsers(response.data || response);
+        };
+        loadUsers();
+    }, [dispatch, id]);
+
+    if (loading || !project) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+                <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+                <p className="text-sm font-black uppercase tracking-widest text-slate-400">Syncing Operational Data...</p>
+            </div>
+        );
+    }
+
+    const assignedEmployees = allUsers.filter(u =>
+        project.assigned_users?.includes(u.id) && u.role === 'EMPLOYEE'
+    );
 
     return (
         <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-[1400px] mx-auto pb-20">
@@ -214,20 +226,50 @@ const ProjectDetail = () => {
                 <div className="space-y-8">
                     <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-premium">
                         <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-8 flex items-center gap-2 pb-4 border-b border-slate-50 w-full text-left">
-                            <Layout size={18} className="text-blue-600" />
-                            Allocated Units
+                            <UserCheck size={18} className="text-blue-600" />
+                            Project Personnel
                         </h3>
-                        <div className="space-y-3">
-                            {project.teams.map((team, idx) => (
-                                <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-[20px] group transition-all hover:bg-white hover:border-blue-200">
-                                    <span className="text-[10px] font-black uppercase text-slate-700">{team}</span>
-                                    <ChevronRight size={14} className="text-slate-300 group-hover:text-blue-600 transition-colors" />
+                        <div className="space-y-6">
+                            <div>
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Unit Manager</p>
+                                <div className="flex items-center gap-3 p-4 bg-blue-50/50 border border-blue-100 rounded-[20px] group transition-all hover:bg-white hover:border-blue-200">
+                                    <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-xs font-black text-white shadow-lg shadow-blue-500/20">
+                                        {project.manager_name ? project.manager_name.split(' ').map(n => n[0]).join('') : 'UN'}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-[11px] font-black text-slate-900 uppercase truncate">{project.manager_name || 'Unassigned'}</p>
+                                        <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mt-0.5">Primary Lead</p>
+                                    </div>
                                 </div>
-                            ))}
+                            </div>
+
+                            <div>
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Assigned Units ({assignedEmployees.length})</p>
+                                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                                    {assignedEmployees.map((emp) => (
+                                        <div key={emp.id} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl group transition-all hover:bg-white hover:border-blue-200">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-lg bg-slate-200 flex items-center justify-center text-[10px] font-black text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600 transition-all">
+                                                    {emp.initials}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="text-[10px] font-bold text-slate-800 truncate">{emp.name}</p>
+                                                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-tight">{emp.email}</p>
+                                                </div>
+                                            </div>
+                                            <div className="px-2 py-0.5 bg-white border border-slate-200 rounded-md text-[7px] font-black text-slate-400 uppercase">
+                                                {emp.status}
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {assignedEmployees.length === 0 && (
+                                        <div className="py-8 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                                            <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">No personnel allocated</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
-                        <Button variant="ghost" className="w-full mt-6 text-slate-400 border-dashed border-2 rounded-2xl py-8 hover:bg-slate-50 hover:border-slate-200 transition-all text-[10px] font-black uppercase tracking-widest">
-                            <Plus size={16} className="mr-1.5" /> Delegate Unit
-                        </Button>
                     </div>
 
                     <div className="bg-[#0f172a] p-10 rounded-[40px] text-white shadow-2xl relative overflow-hidden group">
