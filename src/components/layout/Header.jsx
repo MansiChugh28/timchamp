@@ -8,19 +8,17 @@ import {
     Menu,
     ChevronDown
 } from 'lucide-react';
-import { useSelector, useDispatch } from 'react-redux';
-import { logout } from '../../features/auth/authSlice';
+import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 
 const Header = () => {
-    const dispatch = useDispatch();
-    const { user } = useSelector((state) => state.auth);
+    const { user, logout } = useAuth();
     const navigate = useNavigate();
     const [showProfile, setShowProfile] = useState(false);
 
     const handleLogout = () => {
-        dispatch(logout());
+        logout();
         navigate('/login');
     };
 

@@ -7,6 +7,8 @@ const UserForm = ({ initialData, onSubmit, onCancel, loading }) => {
     const { user: currentUser } = useSelector((state) => state.auth);
     const { users } = useSelector((state) => state.admin); // To list managers
 
+    console.log("users", users)
+
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -14,7 +16,7 @@ const UserForm = ({ initialData, onSubmit, onCancel, loading }) => {
         role: currentUser?.role === 'manager' ? 'employee' : 'employee',
         functional_unit: '',
         manager_id: currentUser?.role === 'manager' ? currentUser.id : '',
-        organisation_id: currentUser?.organisation_id || '',
+        organization_id: currentUser?.organization_id || '',
         is_owner: false,
     });
 
@@ -28,7 +30,9 @@ const UserForm = ({ initialData, onSubmit, onCancel, loading }) => {
         }
     }, [initialData]);
 
-    const managers = users?.filter(u => u.role === 'manager' && u.organisation_id === currentUser?.organisation_id) || [];
+    const managers = users?.filter(u => u.role === 'manager' && u.organization_id === currentUser?.organization_id) || [];
+
+    console.log(managers);
 
     const handleChange = (e) => {
         const { name, value } = e.target;

@@ -53,21 +53,21 @@ const ManagerDashboard = ({ managerState, navigate, user }) => {
                         <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 leading-none">Intelligence Stream: Active</p>
                     </div>
                 </div>
-                <div className="flex gap-4">
+                {/* <div className="flex gap-4">
                     <button className="px-6 py-3 bg-white border border-slate-100 rounded-2xl text-[10px] font-black text-slate-600 shadow-sm hover:shadow-md transition-all uppercase tracking-[0.2em]">
                         Team Settings
                     </button>
                     <button className="px-6 py-3 bg-[#0f172a] rounded-2xl text-[10px] font-black text-white shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all hover:-translate-y-1 uppercase tracking-[0.2em]">
                         Generate Reports
                     </button>
-                </div>
+                </div> */}
             </div>
 
             {/* Top Cards for Manager */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard
                     title="Active Squad"
-                    value={teamMembers.length || '0'}
+                    value={managerState.teamStats?.employees_count || users.length || '0'}
                     icon={Users}
                     colorClass="bg-blue-50 text-blue-600"
                     trend={8.4}
@@ -75,23 +75,23 @@ const ManagerDashboard = ({ managerState, navigate, user }) => {
                 />
                 <StatCard
                     title="Team Productivity"
-                    value={managerState.teamStats?.productivity || '86%'}
+                    value={managerState.teamStats?.team_productivity ? `${managerState.teamStats.team_productivity}%` : '0%'}
                     icon={Zap}
                     colorClass="bg-amber-50 text-amber-600"
                     trend={2.5}
                     sparklineData={getSparkData(true)}
                 />
                 <StatCard
-                    title="Total Team Hours"
-                    value="428h"
+                    title="Total Projects"
+                    value={managerState.teamStats?.project_count || '0'}
                     icon={Clock}
                     colorClass="bg-indigo-50 text-indigo-600"
                     trend={12.1}
                     sparklineData={getSparkData(true)}
                 />
                 <StatCard
-                    title="Critical Tasks"
-                    value="24"
+                    title="Active Projects"
+                    value={managerState.teamStats?.active_projects || '0'}
                     icon={AlertCircle}
                     colorClass="bg-red-50 text-red-600"
                     trend={-5.2}

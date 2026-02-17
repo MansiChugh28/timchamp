@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import api from '../../services/api';
 
 // --- Thunks ---
@@ -14,18 +14,11 @@ export const register = createAsyncThunk(
                     email: credentials.email,
                     password: credentials.password,
                     role: 'admin',
-                    isowner: true
+                    is_owner: true
                 }
             };
 
             const data = await api.post('/auth/register', apiPayload);
-
-            // Assuming the API returns { token, user: { ... }, organization: { name, ... } }
-            localStorage.setItem('workpulse_token', data.token);
-            localStorage.setItem('workpulse_user', JSON.stringify(data.user || data));
-            if (data.organization?.name) {
-                localStorage.setItem('workpulse_org', data.organization.name);
-            }
             return data;
         } catch (error) {
             return rejectWithValue(error.response?.data?.message || 'Registration failed');
@@ -38,12 +31,6 @@ export const login = createAsyncThunk(
     async (credentials, { rejectWithValue }) => {
         try {
             const data = await api.post('/auth/login', credentials);
-            // Assuming the API returns { token, user: { id, name, role, ... }, organization: { name, ... } }
-            localStorage.setItem('workpulse_token', data.token);
-            localStorage.setItem('workpulse_user', JSON.stringify(data.user || data));
-            if (data.organization?.name) {
-                localStorage.setItem('workpulse_org', data.organization.name);
-            }
             return data;
         } catch (error) {
             return rejectWithValue(error.response?.data || 'Login failed');
@@ -53,25 +40,18 @@ export const login = createAsyncThunk(
 
 export const logout = createAsyncThunk(
     'auth/logout',
-    async (_, { dispatch }) => {
-        localStorage.removeItem('workpulse_token');
-        localStorage.removeItem('workpulse_user');
-        localStorage.removeItem('workpulse_org');
+    async () => {
         return true;
     }
 );
 
-// --- Slice ---
-
-const savedUser = localStorage.getItem('workpulse_user');
-const user = savedUser ? JSON.parse(savedUser) : null;
 
 const initialState = {
-    user: user,
-    token: localStorage.getItem('workpulse_token'),
-    organizationName: localStorage.getItem('workpulse_org'),
-    role: user?.role || null,
-    isAuthenticated: !!localStorage.getItem('workpulse_token'),
+    user: null,
+    token: null,
+    organizationName: null,
+    role: null,
+    isAuthenticated: false,
     loading: false,
     error: null,
 };
@@ -83,11 +63,13 @@ const authSlice = createSlice({
         resetError: (state) => {
             state.error = null;
         },
-        setUserFromToken: (state, action) => {
-            // Useful for re-hydrating user from a saved token or decoding JWT
-            state.user = action.payload.user;
-            state.role = action.payload.role;
-            state.isAuthenticated = true;
+        setAuth: (state, action) => {
+            const { user, role, token, organizationName } = action.payload;
+            state.user = user;
+            state.role = role || user?.role;
+            state.token = token;
+            state.organizationName = organizationName;
+            state.isAuthenticated = !!user;
         }
     },
     extraReducers: (builder) => {
@@ -98,12 +80,13 @@ const authSlice = createSlice({
                 state.error = null;
             })
             .addCase(login.fulfilled, (state, action) => {
+                const payload = action.payload;
                 state.loading = false;
                 state.isAuthenticated = true;
-                state.user = action.payload.user;
-                state.role = action.payload.role;
-                state.token = action.payload.token;
-                state.organizationName = action.payload.organization?.name || null;
+                state.user = payload.user || payload;
+                state.role = payload.user?.role || payload.role || null;
+                state.token = payload.access_token || payload.accessToken || payload.token;
+                state.organizationName = payload.organization_name || payload.organization?.name || null;
             })
             .addCase(login.rejected, (state, action) => {
                 state.loading = false;
@@ -115,12 +98,13 @@ const authSlice = createSlice({
                 state.error = null;
             })
             .addCase(register.fulfilled, (state, action) => {
+                const payload = action.payload;
                 state.loading = false;
-                state.user = action.payload.user;
-                state.token = action.payload.token;
-                state.role = action.payload.user.role;
-                state.organizationName = action.payload.organization?.name || null;
                 state.isAuthenticated = true;
+                state.user = payload.user || payload;
+                state.role = payload.user?.role || payload.role || null;
+                state.token = payload.access_token || payload.accessToken || payload.token;
+                state.organizationName = payload.organization_name || payload.organization?.name || null;
             })
             .addCase(register.rejected, (state, action) => {
                 state.loading = false;
@@ -137,5 +121,5 @@ const authSlice = createSlice({
     },
 });
 
-export const { resetError, setUserFromToken } = authSlice.actions;
+export const { resetError, setAuth } = authSlice.actions;
 export default authSlice.reducer;

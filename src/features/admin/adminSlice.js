@@ -3,6 +3,8 @@ import api from '../../services/api';
 
 // --- Thunks ---
 
+
+
 export const fetchUsers = createAsyncThunk(
     'admin/fetchUsers',
     async (params, { rejectWithValue }) => {
@@ -11,6 +13,16 @@ export const fetchUsers = createAsyncThunk(
             return response; // Assuming interceptor returns response.data
         } catch (error) {
             return rejectWithValue(error.response?.data || 'Failed to fetch users');
+        }
+    },
+    {
+        condition: (params, { getState }) => {
+            const { admin } = getState();
+            // Prevent double fetch if already loading
+            if (admin.loading) {
+                return false;
+            }
+            return true;
         }
     }
 );
@@ -23,6 +35,18 @@ export const fetchUserById = createAsyncThunk(
             return response;
         } catch (error) {
             return rejectWithValue(error.response?.data || 'Failed to fetch user details');
+        }
+    }
+);
+
+export const fetchManagers = createAsyncThunk(
+    'admin/fetchManagers',
+    async (id, { rejectWithValue }) => {
+        try {
+            const response = await api.get(`/managers?organization_id=${id}`);
+            return response;
+        } catch (error) {
+            return rejectWithValue(error.response?.data || 'Failed to fetch manager details');
         }
     }
 );
@@ -80,6 +104,7 @@ export const fetchAdminDashboard = createAsyncThunk(
 
 const initialState = {
     users: [],
+    managers: [],
     stats: null,
     loading: false,
     error: null,
@@ -127,6 +152,20 @@ const adminSlice = createSlice({
                 // You might want to store this in state.currentUserDetails if needed
             })
             .addCase(fetchUserById.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
+            })
+
+            .addCase(fetchManagers.pending, (state) => {
+                state.loading = true;
+            })
+            .addCase(fetchManagers.fulfilled, (state, action) => {
+                state.loading = false;
+                state.managers = Array.isArray(action.payload)
+                    ? action.payload
+                    : (action.payload?.managers || action.payload?.data || []);
+            })
+            .addCase(fetchManagers.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
             });

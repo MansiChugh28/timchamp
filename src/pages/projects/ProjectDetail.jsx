@@ -14,8 +14,8 @@ import {
     ExternalLink,
     ChevronRight,
     Zap,
-    Activity,
-    UserCheck
+    UserCheck,
+    Mail
 } from 'lucide-react';
 import {
     AreaChart, Area,
@@ -58,15 +58,9 @@ const ProjectDetail = () => {
     const { id } = useParams();
     const dispatch = useDispatch();
     const { currentProject: project, loading } = useSelector((state) => state.projects);
-    const [allUsers, setAllUsers] = React.useState([]);
 
     React.useEffect(() => {
         dispatch(fetchProjectById(id));
-        const loadUsers = async () => {
-            const response = await userService.getAllUsers();
-            setAllUsers(response.data || response);
-        };
-        loadUsers();
     }, [dispatch, id]);
 
     if (loading || !project) {
@@ -78,9 +72,7 @@ const ProjectDetail = () => {
         );
     }
 
-    const assignedEmployees = allUsers.filter(u =>
-        project.assigned_users?.includes(u.id) && u.role === 'EMPLOYEE'
-    );
+    const assignedEmployees = project.assigned_users || [];
 
     return (
         <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-[1400px] mx-auto pb-20">
@@ -104,202 +96,49 @@ const ProjectDetail = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-8">
-                    {/* Project Header Info */}
-                    <div className="bg-white p-10 rounded-[32px] border border-slate-100 shadow-premium relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-10">
-                            <div className="text-right">
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Unit State</p>
-                                <span className="inline-flex px-4 py-1.5 rounded-full text-[10px] font-black text-emerald-500 bg-emerald-50 border border-emerald-100 uppercase tracking-widest">{project.status}</span>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 relative z-10">
-                            <div className="max-w-2xl">
-                                <h3 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                                    <Zap size={16} className="text-blue-600" /> Operational Objectives
-                                </h3>
-                                <p className="text-slate-500 text-sm leading-relaxed mb-10 font-medium">{project.description}</p>
-
-                                <div className="flex gap-10 pt-8 border-t border-slate-50">
-                                    <div>
-                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Progression</p>
-                                        <div className="flex items-center gap-4">
-                                            <div className="h-2 w-32 bg-slate-100 rounded-full overflow-hidden">
-                                                <div className="h-full bg-blue-600 rounded-full" style={{ width: `${project.progress}%` }} />
-                                            </div>
-                                            <span className="text-[11px] font-black text-slate-900">{project.progress}%</span>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Exp. Date</p>
-                                        <div className="flex items-center gap-2 text-[11px] font-black text-slate-900 uppercase">
-                                            <Calendar size={14} className="text-blue-500" />
-                                            {project.deadline.toUpperCase()}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="h-[200px] bg-slate-50/50 rounded-2xl p-6 border border-slate-100/50">
-                                <div className="flex justify-between items-center mb-4">
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Activity Velocity</span>
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-emerald-500">+12% vs LY</span>
-                                </div>
-                                <ResponsiveContainer width="100%" height="80%">
-                                    <AreaChart data={projectActivity}>
-                                        <defs>
-                                            <linearGradient id="colorActivity" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1} />
-                                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                                            </linearGradient>
-                                        </defs>
-                                        <Tooltip content={<CustomTooltip />} />
-                                        <Area
-                                            type="monotone"
-                                            dataKey="effort"
-                                            stroke="#3b82f6"
-                                            strokeWidth={3}
-                                            fillOpacity={1}
-                                            fill="url(#colorActivity)"
-                                            animationDuration={2000}
-                                        />
-                                    </AreaChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Tasks Table */}
-                    <div className="bg-white rounded-[32px] border border-slate-100 shadow-premium overflow-hidden">
-                        <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
-                            <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest flex items-center gap-3">
-                                <CheckSquare size={18} className="text-blue-600" />
-                                Operational Backlog ({project.tasks.length})
-                            </h3>
-                            <button className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline">Full Review</button>
-                        </div>
-                        <div className="p-0">
-                            <table className="w-full text-sm whitespace-nowrap">
-                                <thead className="bg-slate-50 text-slate-400 font-black uppercase text-[9px] tracking-[0.2em]">
-                                    <tr>
-                                        <th className="px-8 py-5 text-left">Unit Objective</th>
-                                        <th className="px-8 py-5 text-left">State</th>
-                                        <th className="px-8 py-5 text-left">Personnel</th>
-                                        <th className="px-8 py-5 text-left">Urgency</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-50">
-                                    {project.tasks.map(task => (
-                                        <tr key={task.id} className="hover:bg-slate-50/50 transition-colors group cursor-pointer">
-                                            <td className="px-8 py-6 font-bold text-slate-900 uppercase tracking-tight text-xs">{task.title}</td>
-                                            <td className="px-8 py-6">
-                                                <span className={cn(
-                                                    "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border",
-                                                    task.status === 'Completed' ? 'bg-emerald-50 text-emerald-500 border-emerald-100' :
-                                                        task.status === 'In Progress' ? 'bg-blue-50 text-blue-500 border-blue-100' : 'bg-slate-50 text-slate-400 border-slate-100'
-                                                )}>{task.status}</span>
-                                            </td>
-                                            <td className="px-8 py-6">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-[9px] font-black text-slate-500 group-hover:bg-blue-600 group-hover:text-white transition-all">
-                                                        {task.initials}
-                                                    </div>
-                                                    <span className="text-xs font-bold text-slate-500">{task.assignedTo}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-8 py-6">
-                                                <span className={cn(
-                                                    "text-[9px] font-black tracking-widest uppercase",
-                                                    task.priority === 'High' ? 'text-red-500' : 'text-slate-400'
-                                                )}>{task.priority}</span>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
+            <div className="grid grid-cols-1 gap-8">
                 <div className="space-y-8">
                     <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-premium">
                         <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-8 flex items-center gap-2 pb-4 border-b border-slate-50 w-full text-left">
                             <UserCheck size={18} className="text-blue-600" />
-                            Project Personnel
+                            Assigned Personnel ({assignedEmployees.length})
                         </h3>
                         <div className="space-y-6">
                             <div>
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Unit Manager</p>
-                                <div className="flex items-center gap-3 p-4 bg-blue-50/50 border border-blue-100 rounded-[20px] group transition-all hover:bg-white hover:border-blue-200">
-                                    <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-xs font-black text-white shadow-lg shadow-blue-500/20">
-                                        {project.manager_name ? project.manager_name.split(' ').map(n => n[0]).join('') : 'UN'}
-                                    </div>
-                                    <div className="min-w-0">
-                                        <p className="text-[11px] font-black text-slate-900 uppercase truncate">{project.manager_name || 'Unassigned'}</p>
-                                        <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mt-0.5">Primary Lead</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div>
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Assigned Units ({assignedEmployees.length})</p>
-                                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                                <div className="space-y-3">
                                     {assignedEmployees.map((emp) => (
-                                        <div key={emp.id} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl group transition-all hover:bg-white hover:border-blue-200">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-lg bg-slate-200 flex items-center justify-center text-[10px] font-black text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600 transition-all">
-                                                    {emp.initials}
+                                        <div key={emp.id} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-2xl group transition-all hover:bg-white hover:border-blue-200 hover:shadow-lg hover:shadow-blue-500/5">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-xs font-black text-slate-500 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 transition-all shadow-sm">
+                                                    {emp.initials || emp.name?.charAt(0)}
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <p className="text-[10px] font-bold text-slate-800 truncate">{emp.name}</p>
-                                                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-tight">{emp.email}</p>
+                                                    <p className="text-sm font-black text-slate-900 truncate mb-0.5">{emp.name}</p>
+                                                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400">
+                                                        <Mail size={12} />
+                                                        <span className="uppercase tracking-wide">{emp.email}</span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <div className="px-2 py-0.5 bg-white border border-slate-200 rounded-md text-[7px] font-black text-slate-400 uppercase">
-                                                {emp.status}
-                                            </div>
+                                            <Link
+                                                to={`/dashboard/member/${emp.id}`}
+                                                className="p-3 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 transition-all opacity-0 group-hover:opacity-100"
+                                                title="View Activity"
+                                            >
+                                                <ExternalLink size={16} />
+                                            </Link>
                                         </div>
                                     ))}
                                     {assignedEmployees.length === 0 && (
-                                        <div className="py-8 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                                            <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">No personnel allocated</p>
+                                        <div className="py-12 text-center bg-slate-50/50 rounded-3xl border border-dashed border-slate-200">
+                                            <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+                                                <UserCheck size={24} />
+                                            </div>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No personnel allocated to this unit</p>
                                         </div>
                                     )}
                                 </div>
                             </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-[#0f172a] p-10 rounded-[40px] text-white shadow-2xl relative overflow-hidden group">
-                        <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-blue-600/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-1000" />
-                        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-400 mb-8 flex items-center gap-2 pb-4 border-b border-white/5 relative z-10 w-full text-left">
-                            <Clock size={16} /> Chrono Data
-                        </h3>
-                        <div className="space-y-8 relative z-10">
-                            <div>
-                                <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
-                                    <span>Consumption</span>
-                                    <span className="text-white">240 / 500H</span>
-                                </div>
-                                <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
-                                    <div className="h-full bg-gradient-to-r from-blue-600 to-indigo-500 rounded-full" style={{ width: '48%' }} />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="p-4 bg-white/5 rounded-2xl border border-white/10 text-center hover:bg-white/10 transition-colors">
-                                    <p className="text-[9px] font-black text-slate-500 uppercase mb-1">Overtime</p>
-                                    <p className="text-sm font-black">12.5H</p>
-                                </div>
-                                <div className="p-4 bg-white/5 rounded-2xl border border-white/10 text-center hover:bg-white/10 transition-colors">
-                                    <p className="text-[9px] font-black text-slate-500 uppercase mb-1">Proj. End</p>
-                                    <p className="text-sm font-black text-blue-400">APR 12</p>
-                                </div>
-                            </div>
-                            <button className="w-full py-4 bg-white/5 rounded-2xl text-[9px] font-black uppercase tracking-widest text-slate-400 border border-white/10 hover:bg-white/10 transition-all flex items-center justify-center gap-2">
-                                Download Report <ExternalLink size={12} />
-                            </button>
                         </div>
                     </div>
                 </div>

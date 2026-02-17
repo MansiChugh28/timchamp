@@ -19,7 +19,10 @@ const Login = () => {
         e.preventDefault();
         try {
             const resultAction = await dispatch(login({ email, password })).unwrap();
-            contextLogin(resultAction.user, resultAction.token, resultAction.organization?.name);
+            const at = resultAction.access_token || resultAction.accessToken || resultAction.token;
+            const rt = resultAction.refresh_token || resultAction.refreshToken;
+            const org = resultAction.organization_name || resultAction.organization?.name;
+            contextLogin(resultAction.user, at, rt, org);
             navigate('/dashboard');
         } catch (err) {
             console.error('Login failed:', err);

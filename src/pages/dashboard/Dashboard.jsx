@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { useAuth } from '../../hooks/useAuth';
-import { fetchAdminDashboard } from '../../features/admin/adminSlice';
+import { fetchAdminDashboard, fetchManagers } from '../../features/admin/adminSlice';
 import { fetchTeamActivity, fetchTeamProjects } from '../../features/manager/managerSlice';
 import { fetchMyTasks, fetchMyProjects } from '../../features/employee/employeeSlice';
 
@@ -31,6 +31,8 @@ const Dashboard = () => {
 
         if (user.role === 'admin') {
             dispatch(fetchAdminDashboard());
+            const orgId = user.organization_id || 1; // Fallback for dev if needed
+            dispatch(fetchManagers(orgId));
         } else if (user.role === 'manager') {
             dispatch(fetchTeamActivity());
             dispatch(fetchTeamProjects());

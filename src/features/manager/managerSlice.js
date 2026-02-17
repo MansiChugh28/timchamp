@@ -5,9 +5,10 @@ import api from '../../services/api';
 
 export const fetchTeamActivity = createAsyncThunk(
     'manager/fetchTeamActivity',
-    async (_, { rejectWithValue }) => {
+    async (managerId, { rejectWithValue }) => {
         try {
-            const data = await api.get('/manager/team-activity');
+            const params = managerId ? { manager_id: managerId } : {};
+            const data = await api.get('/dashboard/statistics', { params });
             return data;
         } catch (error) {
             return rejectWithValue(error.response?.data || 'Failed to fetch team activity');
@@ -42,7 +43,7 @@ export const fetchMemberActivity = createAsyncThunk(
     'manager/fetchMemberActivity',
     async ({ memberId, date }, { rejectWithValue }) => {
         try {
-            const data = await api.get(`/manager/members/${memberId}/activity`, { params: { date } });
+            const data = await api.get(`/users/${memberId}/batch_activity`);
             return data;
         } catch (error) {
             return rejectWithValue(error.response?.data || 'Failed to fetch member activity');

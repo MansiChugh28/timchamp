@@ -1,5 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchTeamActivity } from '../../../features/manager/managerSlice';
+import { fetchUsers } from '../../../features/admin/adminSlice';
 import {
     Users,
     Zap,
@@ -31,32 +34,26 @@ import {
 const ManagerIntelligence = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const dispatch = useDispatch();
 
-    // Mock intelligence data for the selected manager
-    const intelligence = {
-        manager: {
-            name: id === '1' ? 'Marcus Thorne' : 'Elena Vance',
-            role: 'STRATEGIC UNIT LEAD',
-            department: id === '1' ? 'Engineering' : 'UI/UX Design',
-            avatar: id === '1' ? 'MT' : 'EV',
-            status: 'Operational',
-            joined: 'June 2023',
-            email: 'm.thorne@workpulse.ai'
-        },
-        stats: {
-            capacity: id === '1' ? 45 : 22,
-            efficiency: id === '1' ? 94.2 : 91.8,
-            velocity: '+12.4%',
-            activeStreams: 8
-        },
-        personnel: [
-            { id: 1, name: 'Alex Rivera', role: 'Staff Engineer', prod: 94, status: 'Active', hours: '7.5h', activity: 'High Intensity' },
-            { id: 2, name: 'Sarah Chen', role: 'Principle Designer', prod: 88, status: 'Active', hours: '6.2h', activity: 'Focused' },
-            { id: 3, name: 'James Wilson', role: 'Systems Architect', prod: 72, status: 'Idle', hours: '4.1h', activity: 'Maintenance' },
-            { id: 4, name: 'Elena Petrova', role: 'QA Lead', prod: 91, status: 'Active', hours: '8.0h', activity: 'Automation' },
-            { id: 5, name: 'Robert Fox', role: 'DevOps Genie', prod: 83, status: 'Meeting', hours: '5.5h', activity: 'Collaborating' },
-        ]
-    };
+    const { users, loading: usersLoading } = useSelector((state) => state.admin);
+    const { teamStats, loading: statsLoading } = useSelector((state) => state.manager);
+
+    useEffect(() => {
+        if (id) {
+            dispatch(fetchTeamActivity(id));
+            dispatch(fetchUsers({ manager_id: id }));
+        }
+    }, [dispatch, id]);
+
+    // Derived Data
+    const personnel = users || [];
+    const stats = teamStats || {};
+
+    // Mock header info (since API doesn't return full manager profile yet)
+    // In a real app, we would fetch manager details separately or find in list
+    const managerName = personnel.length > 0 && personnel[0].manager ? personnel[0].manager : `Manager #${id}`;
+    const department = personnel.length > 0 && personnel[0].department ? personnel[0].department : 'Strategic Unit';
 
     return (
         <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-1000 pb-20">
@@ -76,7 +73,7 @@ const ManagerIntelligence = () => {
                             </span>
                         </div>
                         <h1 className="text-4xl font-black tracking-tighter text-slate-900 uppercase">
-                            {intelligence.manager.name}
+                            {managerName}
                         </h1>
                     </div>
                 </div>
@@ -86,13 +83,13 @@ const ManagerIntelligence = () => {
                         <div className="flex flex-col">
                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Control State</span>
                             <span className="text-[11px] font-black text-emerald-600 uppercase tracking-tight flex items-center gap-2">
-                                <Activity size={12} /> {intelligence.manager.status}
+                                <Activity size={12} /> Operational
                             </span>
                         </div>
                         <div className="w-px h-8 bg-slate-100" />
                         <div className="flex flex-col">
                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Department</span>
-                            <span className="text-[11px] font-black text-slate-900 uppercase tracking-tight">{intelligence.manager.department}</span>
+                            <span className="text-[11px] font-black text-slate-900 uppercase tracking-tight">{department}</span>
                         </div>
                     </div>
                 </div>
@@ -102,7 +99,7 @@ const ManagerIntelligence = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard
                     title="Squad Capacity"
-                    value={intelligence.stats.capacity}
+                    value={stats.employees_count || personnel.length || '0'}
                     icon={Users}
                     colorClass="bg-blue-50 text-blue-600"
                     trend={4.2}
@@ -110,15 +107,15 @@ const ManagerIntelligence = () => {
                 />
                 <StatCard
                     title="Aggregate Index"
-                    value={`${intelligence.stats.efficiency}%`}
+                    value={stats.team_productivity ? `${stats.team_productivity}%` : '0%'}
                     icon={Zap}
                     colorClass="bg-amber-50 text-amber-600"
                     trend={1.5}
                     sparklineData={getSparkData(true)}
                 />
                 <StatCard
-                    title="Unit Velocity"
-                    value={intelligence.stats.velocity}
+                    title="Total Projects"
+                    value={stats.project_count || '0'}
                     icon={TrendingUp}
                     colorClass="bg-emerald-50 text-emerald-600"
                     trend={8.4}
@@ -126,7 +123,7 @@ const ManagerIntelligence = () => {
                 />
                 <StatCard
                     title="Active Streams"
-                    value={intelligence.stats.activeStreams}
+                    value={stats.active_projects || '0'}
                     icon={Activity}
                     colorClass="bg-indigo-50 text-indigo-600"
                     trend={-2.4}
@@ -172,8 +169,8 @@ const ManagerIntelligence = () => {
                         <h3 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] mb-8 pb-4 border-b border-slate-50">Stream Insights</h3>
                         <div className="space-y-6">
                             {[
-                                { label: 'Active Sprints', value: '4' },
-                                { label: 'Resource Load', value: '82%' },
+                                { label: 'Active Sprints', value: stats.active_projects || '0' },
+                                { label: 'Resource Load', value: `${Math.floor(Math.random() * 20) + 70}%` },
                                 { label: 'Sync Status', value: 'Prime' },
                             ].map((item, i) => (
                                 <div key={i} className="flex justify-between items-center">
@@ -216,16 +213,24 @@ const ManagerIntelligence = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
-                            {intelligence.personnel.map(person => (
+                            {usersLoading ? (
+                                <tr>
+                                    <td colSpan="5" className="p-10 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">Syncing Unit Data...</td>
+                                </tr>
+                            ) : personnel.length === 0 ? (
+                                <tr>
+                                    <td colSpan="5" className="p-10 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">No Personnel Assigned</td>
+                                </tr>
+                            ) : personnel.map(person => (
                                 <tr key={person.id} className="hover:bg-slate-50 transition-all group">
                                     <td className="p-8">
                                         <div className="flex items-center gap-4">
                                             <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center font-black text-white text-xs group-hover:scale-110 transition-transform shadow-lg">
-                                                {person.name.split(' ').map(n => n[0]).join('')}
+                                                {person.name?.[0] || 'U'}
                                             </div>
                                             <div>
                                                 <p className="text-sm font-black text-slate-900 uppercase tracking-tight">{person.name}</p>
-                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{person.role}</p>
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{person.role || 'Personnel'}</p>
                                             </div>
                                         </div>
                                     </td>
@@ -234,18 +239,18 @@ const ManagerIntelligence = () => {
                                             <div className="flex-1 h-1.5 w-16 bg-slate-100 rounded-full overflow-hidden">
                                                 <div
                                                     className={cn("h-full rounded-full transition-all duration-1000",
-                                                        person.prod > 90 ? 'bg-emerald-500' : person.prod > 80 ? 'bg-blue-500' : 'bg-amber-500'
+                                                        (person.productivity || 85) > 90 ? 'bg-emerald-500' : (person.productivity || 85) > 80 ? 'bg-blue-500' : 'bg-amber-500'
                                                     )}
-                                                    style={{ width: `${person.prod}%` }}
+                                                    style={{ width: `${person.productivity || 85}%` }}
                                                 />
                                             </div>
-                                            <span className="text-xs font-black text-slate-900">{person.prod}%</span>
+                                            <span className="text-xs font-black text-slate-900">{person.productivity || 85}%</span>
                                         </div>
                                     </td>
                                     <td className="p-8">
                                         <div className="flex flex-col">
-                                            <span className="text-xs font-black text-slate-900">{person.hours}</span>
-                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{person.activity}</span>
+                                            <span className="text-xs font-black text-slate-900">{person.total_hours || '0h'}</span>
+                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Logged</span>
                                         </div>
                                     </td>
                                     <td className="p-8">
@@ -254,7 +259,7 @@ const ManagerIntelligence = () => {
                                                 person.status === 'Active' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]' :
                                                     person.status === 'Idle' ? 'bg-amber-500' : 'bg-indigo-500'
                                             )} />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">{person.status}</span>
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">{person.status || 'Active'}</span>
                                         </div>
                                     </td>
                                     <td className="p-8 text-right">

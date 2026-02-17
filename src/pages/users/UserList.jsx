@@ -13,7 +13,8 @@ import {
     ChevronRight,
     TrendingUp,
     Layout,
-    AlertTriangle
+    AlertTriangle,
+    Loader2
 } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
 import { fetchUsers, createUser, updateUser, deleteUser } from '../../features/admin/adminSlice';
@@ -41,8 +42,12 @@ const UserList = () => {
     const [toast, setToast] = useState(null);
 
     useEffect(() => {
-        dispatch(fetchUsers());
-    }, [dispatch]);
+        if (currentUser?.role?.toLowerCase() === 'manager') {
+            dispatch(fetchUsers({ manager_id: currentUser.id }));
+        } else {
+            dispatch(fetchUsers());
+        }
+    }, [dispatch, currentUser]);
 
     const handleCreateUser = () => {
         setEditingUser(null);
@@ -97,12 +102,34 @@ const UserList = () => {
     };
 
     const getRoleBadge = (role) => {
-        switch (role) {
+        switch (role?.toUpperCase()) {
             case 'ADMIN': return 'bg-purple-50 text-purple-600 border-purple-100';
             case 'MANAGER': return 'bg-blue-50 text-blue-600 border-blue-100';
             default: return 'bg-slate-50 text-slate-400 border-slate-100';
         }
     };
+
+    if (error && users.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px] gap-6 animate-in fade-in duration-500">
+                <div className="w-20 h-20 rounded-[30px] bg-red-50 flex items-center justify-center border border-red-100">
+                    <AlertTriangle size={36} className="text-red-500" />
+                </div>
+                <div className="text-center space-y-2">
+                    <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Registry Access Denied</h3>
+                    <p className="text-sm text-slate-500 font-medium max-w-xs mx-auto">
+                        {typeof error === 'object' ? (error.error || error.message) : error || "Multiple authorization vectors failed."}
+                    </p>
+                </div>
+                <Button
+                    onClick={() => dispatch(fetchUsers())}
+                    className="bg-slate-900 hover:bg-black text-white rounded-2xl font-black uppercase text-[10px] tracking-widest px-8 py-4 shadow-xl shadow-slate-200 transition-all hover:-translate-y-1"
+                >
+                    Retry Protocol
+                </Button>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-10 animate-in fade-in duration-700 max-w-[1400px] mx-auto pb-20">
@@ -150,7 +177,11 @@ const UserList = () => {
                                 <th className="px-10 py-6">Functional Unit</th>
                                 <th className="px-10 py-6">Proxy Superior</th>
                                 <th className="px-10 py-6">State</th>
-                                <th className="px-10 py-6 text-right">Operational Actions</th>
+                                {
+                                    currentUser?.role === "admin" && (
+                                        <th className="px-10 py-6 text-right">Operational Actions</th>
+                                    )
+                                }
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
@@ -202,8 +233,8 @@ const UserList = () => {
                                     </td>
                                     <td className="px-10 py-6 text-right">
                                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            {/* Protection Logic: Normal admins cannot edit/delete owner */}
-                                            {(!u.is_owner || currentUser?.is_owner) && (
+                                            {/* Protection Logic: Normal admins cannot edit/delete owner, Managers cannot edit/delete anyone */}
+                                            {currentUser?.role?.toLowerCase() !== 'manager' && (!u.is_owner || currentUser?.is_owner) && (
                                                 <>
                                                     <button
                                                         onClick={() => handleEditUser(u)}

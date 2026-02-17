@@ -10,40 +10,41 @@ import {
     LayoutDashboard,
     Activity
 } from 'lucide-react';
-import { useSelector, useDispatch } from 'react-redux';
-import { logout } from '../../features/auth/authSlice';
+import { useAuth } from '../../hooks/useAuth';
 import { cn } from '../../lib/utils';
 
 const Sidebar = () => {
-    const dispatch = useDispatch();
-    const { user } = useSelector((state) => state.auth);
+    const { user, logout } = useAuth();
     console.log("user", user);
     const location = useLocation();
     const navigate = useNavigate();
     const [collapsed, setCollapsed] = useState(false);
 
     const handleLogout = () => {
-        dispatch(logout());
+        logout();
         navigate('/login');
     };
 
     const menuItems = [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', roles: ['admin', 'manager', 'employee'] },
         { name: 'Team', icon: Users, path: '/teams', roles: ['admin', 'manager', 'employee'] },
-        { name: 'Projects', icon: Briefcase, path: '/projects', roles: ['admin', 'manager', 'employee'] },
-        { name: 'Tasks', icon: CheckSquare, path: '/tasks', roles: ['admin', 'manager', 'employee'] },
-        { name: 'Users', icon: UserCircle, path: '/users', roles: ['admin'] },
+        { name: 'Projects', icon: Briefcase, path: '/projects', roles: ['manager'] },
+        // { name: 'Tasks', icon: CheckSquare, path: '/tasks', roles: ['admin', 'manager', 'employee'] },
+        { name: 'Users', icon: UserCircle, path: '/users', roles: ['admin', 'manager'] },
     ];
 
-    const filteredItems = menuItems.filter(item => item.roles.includes(user?.role));
+    const userRole = user?.role?.toLowerCase();
+    const filteredItems = menuItems.filter(item =>
+        item.roles.some(role => role.toLowerCase() === userRole)
+    );
 
     return (
         <aside className={cn(
-            "h-screen bg-[#0f172a] text-white transition-all duration-500 ease-in-out flex flex-col z-30 shadow-2xl overflow-hidden",
-            collapsed ? "w-[72px]" : "w-64"
+            "h-screen bg-[#0f172a] text-white transition-all duration-500 ease-in-out flex flex-col z-30 shadow-2xl overflow-hidden relative shrink-0",
+            collapsed ? "w-[72px]" : "w-80"
         )}>
             {/* Brand Logo */}
-            <div className="p-6 flex items-center h-20 border-b border-slate-800/50">
+            <div className="p-8 flex items-center h-20 border-b border-slate-800/50">
                 <div className="flex items-center gap-3 min-w-[200px]">
                     <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20 shrink-0">
                         <Activity size={20} className="text-white" />
@@ -59,7 +60,7 @@ const Sidebar = () => {
             {/* Toggle Button - Floating style */}
             <button
                 onClick={() => setCollapsed(!collapsed)}
-                className="absolute -right-3 top-24 w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center shadow-lg border-2 border-[#0f172a] hover:scale-110 transition-transform z-40"
+                className="absolute -right-0 top-24 w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center shadow-lg border-2 border-[#0f172a] hover:scale-110 transition-transform z-40"
             >
                 {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
             </button>
@@ -105,8 +106,8 @@ const Sidebar = () => {
                             <span className="text-sm font-bold truncate text-white uppercase tracking-tight">{user?.name}</span>
                             <span className={cn(
                                 "text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded w-fit mt-0.5",
-                                user?.role === 'ADMIN' ? 'bg-purple-500/20 text-purple-400' :
-                                    user?.role === 'MANAGER' ? 'bg-blue-500/20 text-blue-400' : 'bg-slate-500/20 text-slate-400'
+                                user?.role?.toLowerCase() === 'admin' ? 'bg-purple-500/20 text-purple-400' :
+                                    user?.role?.toLowerCase() === 'manager' ? 'bg-blue-500/20 text-blue-400' : 'bg-slate-500/20 text-slate-400'
                             )}>
                                 {user?.role}
                             </span>

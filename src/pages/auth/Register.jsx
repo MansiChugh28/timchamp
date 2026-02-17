@@ -19,7 +19,6 @@ const Register = () => {
         password: '',
     });
 
-    // Redirect if already authenticated
     React.useEffect(() => {
         if (isAuthenticated) {
             navigate('/dashboard');
@@ -34,7 +33,11 @@ const Register = () => {
         e.preventDefault();
         try {
             const resultAction = await dispatch(register(formData)).unwrap();
-            contextLogin(resultAction.user, resultAction.token, resultAction.organization?.name);
+            console.log("resultaction", resultAction)
+            const at = resultAction.access_token || resultAction.accessToken || resultAction.token;
+            const rt = resultAction.refresh_token || resultAction.refreshToken;
+            const org = resultAction.organization_name || resultAction.organization?.name;
+            contextLogin(resultAction.user, at, rt, org);
             navigate('/dashboard');
         } catch (err) {
             console.error('Registration failed:', err);

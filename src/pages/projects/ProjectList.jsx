@@ -19,7 +19,7 @@ import {
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import { Button } from '../../components/ui/button';
 import { useSelector, useDispatch } from 'react-redux';
-import { fetchProjects, createProject, updateProject, deleteProject } from '../../features/projects/projectSlice';
+import { fetchProjects, createProject, updateProject, deleteProject, assignProjectUsers, unassignProjectUser } from '../../features/projects/projectSlice';
 import EmptyState from '../../components/ui/EmptyState';
 import Modal from '../../components/ui/Modal';
 import Toast from '../../components/ui/Toast';
@@ -44,6 +44,12 @@ const ProjectList = () => {
     const [users, setUsers] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [toast, setToast] = useState(null);
+    const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+    const [selectedProjectForAssign, setSelectedProjectForAssign] = useState(null);
+    const [assignedUserIds, setAssignedUserIds] = useState([]);
+    const [userSearchTerm, setUserSearchTerm] = useState('');
+    const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+    const [userToUnassign, setUserToUnassign] = useState(null);
 
     useEffect(() => {
         dispatch(fetchProjects());
@@ -51,6 +57,7 @@ const ProjectList = () => {
             try {
                 const params = user?.role === 'manager' ? { manager_id: user.id } : {};
                 const response = await userService.getAllUsers(params);
+                console.log("response", response);
                 setUsers(response.data || response);
             } catch (err) {
                 console.error('Failed to load users:', err);
@@ -102,12 +109,8 @@ const ProjectList = () => {
         setIsSubmitting(true);
         try {
             const projectPayload = {
-                ...formData,
-                manager_name: user?.role === 'manager' ? user.name : (users.find(u => u.id === parseInt(formData.managerId))?.name || ''),
-                assigned_users: [
-                    ...(formData.managerId ? [parseInt(formData.managerId)] : (user?.role === 'manager' ? [user.id] : [])),
-                    ...formData.assignedEmployeeIds
-                ]
+                name: formData.name,
+                description: formData.description
             };
 
             if (editingProject) {
@@ -120,7 +123,83 @@ const ProjectList = () => {
             handleCloseModal();
         } catch (err) {
             console.error('Failed to save project:', err);
-            showToast(err || 'Failed to save project.', 'error');
+            const errorMessage = typeof err === 'object' ? (err.error || err.message) : err;
+            showToast(errorMessage || 'Failed to save project.', 'error');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleOpenAssignModal = (project) => {
+        setSelectedProjectForAssign(project);
+        setAssignedUserIds(project.assigned_users?.map(u => u.id) || []);
+        setIsAssignModalOpen(true);
+    };
+
+    const handleCloseAssignModal = () => {
+        setIsAssignModalOpen(false);
+        setSelectedProjectForAssign(null);
+        setAssignedUserIds([]);
+        setUserSearchTerm('');
+    };
+
+    const handleAssignSubmit = async (e) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+        try {
+            // Find newly added IDs
+            const currentIds = selectedProjectForAssign.assigned_users?.map(u => u.id) || [];
+            const newIds = assignedUserIds.filter(id => !currentIds.includes(id));
+
+            if (newIds.length > 0) {
+                await dispatch(assignProjectUsers({
+                    id: selectedProjectForAssign.id,
+                    userIds: newIds // Only send new IDs
+                })).unwrap();
+                showToast('Users assigned successfully.');
+            } else if (assignedUserIds.length === currentIds.length) {
+                showToast('No new users to assign.', 'info');
+            }
+
+            handleCloseAssignModal();
+            dispatch(fetchProjects()); // Refresh to show updated counts/members
+        } catch (err) {
+            console.error('Failed to assign users:', err);
+            const errorMessage = typeof err === 'object' ? (err.error || err.message) : err;
+            showToast(errorMessage || 'Failed to assign users.', 'error');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleUnassignUser = (e, userId) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setUserToUnassign(userId);
+        setIsConfirmModalOpen(true);
+    };
+
+    const confirmUnassignUser = async () => {
+        if (!userToUnassign) return;
+        setIsSubmitting(true);
+        try {
+            await dispatch(unassignProjectUser({
+                id: selectedProjectForAssign.id,
+                userId: userToUnassign
+            })).unwrap();
+            setAssignedUserIds(prev => prev.filter(id => id !== userToUnassign));
+            // Update local selected project state to reflect removal immediately in UI
+            setSelectedProjectForAssign(prev => ({
+                ...prev,
+                assigned_users: prev.assigned_users?.filter(u => u.id !== userToUnassign) || []
+            }));
+            showToast('User removed from project.');
+            dispatch(fetchProjects());
+            setIsConfirmModalOpen(false);
+            setUserToUnassign(null);
+        } catch (err) {
+            console.error('Failed to remove user:', err);
+            showToast('Failed to remove user.', 'error');
         } finally {
             setIsSubmitting(false);
         }
@@ -135,14 +214,15 @@ const ProjectList = () => {
                 showToast('Project deleted successfully.');
             } catch (err) {
                 console.error('Failed to delete project:', err);
-                showToast(err || 'Failed to delete project.', 'error');
+                const errorMessage = typeof err === 'object' ? (err.error || err.message) : err;
+                showToast(errorMessage || 'Failed to delete project.', 'error');
             }
         }
     };
 
     const generateActivity = () => Array.from({ length: 7 }, () => ({ value: Math.floor(Math.random() * 40) + 10 }));
 
-    const canCreate = user?.role === 'admin' || user?.role === 'manager';
+    const canCreate = user?.role === 'manager';
 
     const getStatusStyles = (status) => {
         switch (status) {
@@ -172,28 +252,11 @@ const ProjectList = () => {
                     onAction={canCreate ? () => handleOpenModal() : null}
                 />
                 {renderModal()}
+                {renderAssignModal()}
+                {renderConfirmModal()}
             </>
         );
     }
-
-    const managers = users.filter(u => u.role === 'MANAGER');
-
-    const getFilteredEmployees = () => {
-        if (user?.role === 'manager') {
-            // For managers, users list is already filtered by API
-            return users.filter(u => u.role === 'EMPLOYEE');
-        }
-
-        const currentManagerId = formData.managerId;
-        if (!currentManagerId) return [];
-
-        const managerObj = users.find(u => u.id === parseInt(currentManagerId));
-        if (!managerObj) return [];
-
-        return users.filter(u => u.role === 'EMPLOYEE' && u.manager === managerObj.name);
-    };
-
-    const filteredEmployees = getFilteredEmployees();
 
     function renderModal() {
         return (
@@ -227,59 +290,6 @@ const ProjectList = () => {
                         />
                     </div>
 
-                    {user?.role === 'admin' && (
-                        <div className="space-y-2">
-                            <Label htmlFor="managerId" className="text-[10px] font-black uppercase tracking-widest text-slate-400">Project Manager</Label>
-                            <select
-                                id="managerId"
-                                value={formData.managerId}
-                                onChange={(e) => setFormData({ ...formData, managerId: e.target.value, assignedEmployeeIds: [] })}
-                                className="w-full px-4 py-4 rounded-2xl border-2 border-slate-100 bg-slate-50 focus:bg-white focus:border-blue-500 transition-all outline-none text-sm font-medium appearance-none"
-                                required
-                            >
-                                <option value="">Select Manager</option>
-                                {managers.map(m => (
-                                    <option key={m.id} value={m.id}>{m.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
-
-                    <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                            Assign Personnel Under {user?.role === 'manager' ? 'You' : (users.find(u => u.id === parseInt(formData.managerId))?.name || 'Manager')}
-                        </Label>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[200px] overflow-y-auto p-2 border-2 border-slate-100 rounded-2xl bg-slate-50/50">
-                            {filteredEmployees.length > 0 ? (
-                                filteredEmployees.map(emp => (
-                                    <label key={emp.id} className="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-100 cursor-pointer hover:border-blue-200 transition-all">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.assignedEmployeeIds.includes(emp.id)}
-                                            onChange={(e) => {
-                                                const ids = e.target.checked
-                                                    ? [...formData.assignedEmployeeIds, emp.id]
-                                                    : formData.assignedEmployeeIds.filter(id => id !== emp.id);
-                                                setFormData({ ...formData, assignedEmployeeIds: ids });
-                                            }}
-                                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
-                                        />
-                                        <div className="min-w-0">
-                                            <p className="text-xs font-bold text-slate-700 truncate">{emp.name}</p>
-                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{emp.team}</p>
-                                        </div>
-                                    </label>
-                                ))
-                            ) : (
-                                <div className="col-span-full py-8 text-center">
-                                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
-                                        {formData.managerId ? 'No reportees found for this manager' : 'Select a manager to allocate units'}
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
                     <div className="flex gap-4 pt-4">
                         <Button
                             type="button"
@@ -302,6 +312,172 @@ const ProjectList = () => {
                         </Button>
                     </div>
                 </form>
+            </Modal>
+        );
+    }
+
+    function renderAssignModal() {
+        if (!selectedProjectForAssign) return null;
+
+        const filteredMembers = users.filter(u =>
+            u.name.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+            u.email?.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+            u.role?.toLowerCase().includes(userSearchTerm.toLowerCase())
+        );
+
+        const isAllSelected = filteredMembers.length > 0 && filteredMembers.every(u => assignedUserIds.includes(u.id));
+
+        const handleSelectAll = (checked) => {
+            if (checked) {
+                const allFilteredIds = filteredMembers.map(u => u.id);
+                setAssignedUserIds(prev => Array.from(new Set([...prev, ...allFilteredIds])));
+            } else {
+                const allFilteredIds = filteredMembers.map(u => u.id);
+                setAssignedUserIds(prev => prev.filter(id => !allFilteredIds.includes(id)));
+            }
+        };
+
+        return (
+            <Modal
+                isOpen={isAssignModalOpen}
+                onClose={handleCloseAssignModal}
+                title={`Assign Personnel: ${selectedProjectForAssign.name}`}
+                maxWidth="max-w-xl"
+            >
+                <form onSubmit={handleAssignSubmit} className="space-y-6">
+                    <div className="space-y-4">
+                        <div className="flex flex-col gap-4">
+                            <div className="relative group">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-500 transition-colors" size={16} />
+                                <input
+                                    placeholder="Filter by name, email, or role..."
+                                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border-2 border-transparent focus:bg-white focus:border-slate-100 rounded-xl text-xs font-medium outline-none transition-all"
+                                    value={userSearchTerm}
+                                    onChange={(e) => setUserSearchTerm(e.target.value)}
+                                />
+                            </div>
+                            <div className="flex items-center justify-between px-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                <label className="flex items-center gap-2 cursor-pointer hover:text-slate-600 transition-colors">
+                                    <input
+                                        type="checkbox"
+                                        checked={isAllSelected}
+                                        onChange={(e) => handleSelectAll(e.target.checked)}
+                                        className="w-4 h-4 rounded text-blue-600 focus:ring-transparent border-slate-200"
+                                    />
+                                    Select All Filtered
+                                </label>
+                                <span>{assignedUserIds.length} Selected</span>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[350px] overflow-y-auto p-2 border-2 border-slate-50 rounded-2xl bg-slate-50/50 custom-scrollbar">
+                            {filteredMembers.length > 0 ? (
+                                filteredMembers.map(emp => (
+                                    <label key={emp.id} className={cn(
+                                        "flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer relative group",
+                                        assignedUserIds.includes(emp.id)
+                                            ? "bg-white border-blue-500 shadow-sm"
+                                            : "bg-white/50 border-transparent hover:border-slate-200"
+                                    )}>
+                                        <input
+                                            type="checkbox"
+                                            checked={assignedUserIds.includes(emp.id)}
+                                            onChange={(e) => {
+                                                const ids = e.target.checked
+                                                    ? [...assignedUserIds, emp.id]
+                                                    : assignedUserIds.filter(id => id !== emp.id);
+                                                setAssignedUserIds(ids);
+                                            }}
+                                            className="w-4 h-4 rounded text-blue-600 focus:ring-transparent border-slate-200"
+                                        />
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-xs font-bold text-slate-700 truncate">{emp.name}</p>
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{emp.role}</p>
+                                        </div>
+                                        {/* Show delete button if user is already assigned (in original list) */}
+                                        {selectedProjectForAssign.assigned_users?.some(u => u.id === emp.id) && (
+                                            <button
+                                                onClick={(e) => handleUnassignUser(e, emp.id)}
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-red-50 text-red-500 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-red-100"
+                                                title="Remove from project"
+                                            >
+                                                <Trash2 size={12} />
+                                            </button>
+                                        )}
+                                    </label>
+                                ))
+                            ) : (
+                                <div className="col-span-full py-12 text-center">
+                                    <Users size={32} className="mx-auto text-slate-200 mb-2" />
+                                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
+                                        No matching personnel found
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex gap-4 pt-4">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleCloseAssignModal}
+                            className="flex-1 rounded-2xl font-black uppercase text-[10px] tracking-widest py-6 border-slate-200"
+                        >
+                            Cancel Protocol
+                        </Button>
+                        <Button
+                            type="submit"
+                            disabled={isSubmitting}
+                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest py-6 shadow-xl shadow-blue-500/20 active:scale-95 transition-all"
+                        >
+                            {isSubmitting ? (
+                                <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                                "Record Assignment"
+                            )}
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
+        );
+    }
+
+    function renderConfirmModal() {
+        return (
+            <Modal
+                isOpen={isConfirmModalOpen}
+                onClose={() => setIsConfirmModalOpen(false)}
+                title="Confirm Removal"
+                maxWidth="max-w-md"
+            >
+                <div className="space-y-6">
+                    <p className="text-sm font-medium text-slate-600">
+                        Are you sure you want to remove this user from the project? This action cannot be undone.
+                    </p>
+                    <div className="flex gap-4 pt-4">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsConfirmModalOpen(false)}
+                            className="flex-1 rounded-2xl font-black uppercase text-[10px] tracking-widest py-6 border-slate-200"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={confirmUnassignUser}
+                            disabled={isSubmitting}
+                            className="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest py-6 shadow-xl shadow-red-500/20 active:scale-95 transition-all"
+                        >
+                            {isSubmitting ? (
+                                <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                                "Confirm Removal"
+                            )}
+                        </Button>
+                    </div>
+                </div>
             </Modal>
         );
     }
@@ -360,6 +536,20 @@ const ProjectList = () => {
                                         )}>
                                             {project.status || 'Active'}
                                         </div>
+                                        {user?.role === 'manager' && (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    handleOpenAssignModal(project);
+                                                }}
+                                                className="h-7 px-3 rounded-full text-[9px] font-black uppercase tracking-widest border-blue-200 text-blue-600 hover:bg-blue-50 transition-all shadow-sm"
+                                            >
+                                                <Users size={12} className="mr-1" /> Assign
+                                            </Button>
+                                        )}
                                         {canCreate && (
                                             <div className="flex gap-1">
                                                 <button
@@ -445,6 +635,8 @@ const ProjectList = () => {
                 ))}
             </div>
             {renderModal()}
+            {renderAssignModal()}
+            {renderConfirmModal()}
             {toast && (
                 <Toast
                     {...toast}

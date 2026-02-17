@@ -14,8 +14,12 @@ const TeamList = () => {
     const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
-        dispatch(fetchUsers());
-    }, [dispatch]);
+        if (user?.role?.toLowerCase() === 'manager') {
+            dispatch(fetchUsers({ manager_id: user.id }));
+        } else {
+            dispatch(fetchUsers());
+        }
+    }, [dispatch, user]);
 
     const colors = [
         'bg-blue-600', 'bg-purple-600', 'bg-emerald-600',
@@ -24,7 +28,9 @@ const TeamList = () => {
 
     // Grouping logic: Derive units from user data
     const unitsData = useMemo(() => {
-        const orgUsers = users?.filter(u => u.organisation_id === user?.organisation_id) || [];
+        // Handle both 'organization_id' (common in API) and 'organisation_id' (legacy)
+        const orgId = user?.organization_id || user?.organisation_id;
+        const orgUsers = users?.filter(u => (u.organization_id || u.organisation_id) === orgId) || [];
         const groups = {};
 
         orgUsers.forEach(u => {
@@ -49,15 +55,24 @@ const TeamList = () => {
             }
         });
 
-        return Object.values(groups).map((group, index) => ({
-            ...group,
-            manager: group.manager || group.members[0]?.name || 'Establishing...',
-            memberCount: group.members.length,
-            projects: Math.floor(Math.random() * 10) + 2, // Mocking projects for now
-            performance: `${Math.floor(Math.random() * 20) + 80}%`,
-            color: colors[index % colors.length]
-        }));
-    }, [users, user?.organisation_id]);
+        return Object.values(groups).map((group, index) => {
+            // If logged-in user is a manager, they are likely the lead of these groups
+            // even if they aren't in the returned user list (which might only contain subordinates).
+            let managerName = group.manager;
+            if (!managerName && user?.role?.toLowerCase() === 'manager') {
+                managerName = user.name;
+            }
+
+            return {
+                ...group,
+                manager: managerName || group.members[0]?.name || 'Establishing...',
+                memberCount: group.members.length,
+                projects: Math.floor(Math.random() * 10) + 2, // Mocking projects for now
+                performance: `${Math.floor(Math.random() * 20) + 80}%`,
+                color: colors[index % colors.length]
+            };
+        });
+    }, [users, user]);
 
     const filteredUnits = unitsData.filter(unit =>
         unit.name.toLowerCase().includes(searchTerm.toLowerCase())

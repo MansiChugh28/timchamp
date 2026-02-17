@@ -33,9 +33,9 @@ const EmployeeDashboard = ({ employeeState }) => (
                     <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 leading-none">Live Synchronization: Active</p>
                 </div>
             </div>
-            <button className="px-6 py-3 bg-[#0f172a] rounded-2xl text-[10px] font-black text-white shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all hover:-translate-y-1 uppercase tracking-[0.2em]">
+            {/* <button className="px-6 py-3 bg-[#0f172a] rounded-2xl text-[10px] font-black text-white shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all hover:-translate-y-1 uppercase tracking-[0.2em]">
                 Export Stats
-            </button>
+            </button> */}
         </div>
 
         {/* Top Cards */}

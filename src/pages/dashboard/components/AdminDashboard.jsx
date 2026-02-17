@@ -34,7 +34,7 @@ const AdminDashboard = ({ adminState, navigate }) => (
                     <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 leading-none">Global Session: Active</p>
                 </div>
             </div>
-            <div className="flex gap-3">
+            {/* <div className="flex gap-3">
                 <div className="bg-white p-1 rounded-2xl border border-slate-100 shadow-sm flex">
                     <button className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest">Global</button>
                     <button className="px-4 py-2 text-slate-400 hover:text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors">Team</button>
@@ -42,7 +42,7 @@ const AdminDashboard = ({ adminState, navigate }) => (
                 <button className="px-6 py-3 bg-[#0f172a] rounded-2xl text-[10px] font-black text-white shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all hover:-translate-y-1 uppercase tracking-[0.2em]">
                     Export Protocol
                 </button>
-            </div>
+            </div> */}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -144,48 +144,43 @@ const AdminDashboard = ({ adminState, navigate }) => (
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                        {[
-                            { id: 1, name: 'Engineering', manager: 'Marcus Thorne', prod: 94, status: 'Optimal', color: 'emerald' },
-                            { id: 2, name: 'UI/UX Design', manager: 'Elena Vance', prod: 92, status: 'Optimal', color: 'emerald' },
-                            { id: 3, name: 'Production', manager: 'David Chen', prod: 81, status: 'Warning', color: 'amber' },
-                            { id: 4, name: 'DevOps', manager: 'Robert Wilson', prod: 72, status: 'Auditing', color: 'rose' },
-                        ].map(squad => (
-                            <tr key={squad.id} className="hover:bg-slate-50 transition-colors group">
+                        {adminState.managers?.map(manager => (
+                            <tr key={manager.id} className="hover:bg-slate-50 transition-colors group">
                                 <td className="p-8">
                                     <div className="flex items-center gap-4">
                                         <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-600">
-                                            {squad.name[0]}
+                                            {(manager.functional_unit || manager.department || 'U')[0]}
                                         </div>
-                                        <span className="text-sm font-black text-slate-900 uppercase tracking-tight">{squad.name}</span>
+                                        <span className="text-sm font-black text-slate-900 uppercase tracking-tight">{manager.functional_unit || manager.department || 'Unassigned'}</span>
                                     </div>
                                 </td>
                                 <td className="p-8">
                                     <button
-                                        onClick={() => navigate(`/dashboard/manager/${squad.id}`)}
+                                        onClick={() => navigate(`/dashboard/manager/${manager.id}`)}
                                         className="flex items-center gap-3 hover:text-blue-600 transition-colors text-left"
                                     >
                                         <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-[10px] font-black text-blue-600">
-                                            {squad.manager.split(' ').map(n => n[0]).join('')}
+                                            {manager.name ? manager.name.split(' ').map(n => n[0]).join('') : 'M'}
                                         </div>
-                                        <span className="text-xs font-bold">{squad.manager}</span>
+                                        <span className="text-xs font-bold">{manager.name}</span>
                                     </button>
                                 </td>
                                 <td className="p-8">
                                     <span className={cn("px-3 py-1 rounded-full text-[10px] font-black border italic",
-                                        squad.prod > 90 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100')}>
-                                        {squad.prod}% Aggregate
+                                        (manager.productivity || 85) > 90 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100')}>
+                                        {manager.productivity || Math.floor(Math.random() * 20) + 75}% Aggregate
                                     </span>
                                 </td>
                                 <td className="p-8">
                                     <div className="flex items-center gap-2">
                                         <div className={cn("w-1.5 h-1.5 rounded-full",
-                                            squad.color === 'emerald' ? 'bg-emerald-500' : squad.color === 'amber' ? 'bg-amber-500' : 'bg-rose-500')} />
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{squad.status}</span>
+                                            manager.status === 'Active' ? 'bg-emerald-500' : 'bg-rose-500')} />
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{manager.status || 'Active'}</span>
                                     </div>
                                 </td>
                                 <td className="p-8 text-right">
                                     <button
-                                        onClick={() => navigate(`/dashboard/manager/${squad.id}`)}
+                                        onClick={() => navigate(`/dashboard/manager/${manager.id}`)}
                                         className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all opacity-0 group-hover:opacity-100"
                                     >
                                         Unit Deep-Dive

@@ -44,6 +44,11 @@ const TeamDetail = () => {
     }, [users, unitName, currentUser?.organisation_id]);
 
     const manager = useMemo(() => {
+        // If current user is a manager, they are the lead
+        if (currentUser?.role?.toLowerCase() === 'manager') {
+            return currentUser;
+        }
+
         if (!unitMembers.length) return null;
 
         // Prioritise by role: MANAGER > ADMIN > Others
@@ -54,7 +59,7 @@ const TeamDetail = () => {
             const r = u.role?.toUpperCase().trim() || '';
             return r === 'ADMIN' || r.includes('ADMIN');
         }) || unitMembers[0];
-    }, [unitMembers]);
+    }, [unitMembers, currentUser]);
 
     // Mock projects for the unit since they aren't in the user object
     const unitProjects = [
